@@ -276,7 +276,7 @@ Pages.favorites = (tab) => {
       : `<div class="empty empty-sm"><p>Filters you use with <strong>Go</strong> or <strong>Apply</strong> will show up here.</p></div>`}`;
 
   return `<section class="page">
-    <div class="page-head"><div><h1>Favorites</h1><p class="sub">Saved on this device.</p></div></div>
+    <div class="page-head"><div><h1>Favorites</h1><p class="sub">${favoritesNote()}</p></div></div>
     <div class="tabs" role="tablist" aria-label="Favorites sections">
       <a role="tab" class="tab${tab === 'spots' ? ' is-on' : ''}" aria-selected="${tab === 'spots'}" href="#favorites">${icon('star')}Favorite spots<span class="count-pill">${favs.length}</span></a>
       <a role="tab" class="tab${tab === 'filters' ? ' is-on' : ''}" aria-selected="${tab === 'filters'}" href="#favorites-filters">${icon('filter')}Saved filters<span class="count-pill">${saved.length}</span></a>
@@ -284,6 +284,15 @@ Pages.favorites = (tab) => {
     <div class="tab-panel" role="tabpanel">${tab === 'spots' ? spotsPanel : filtersPanel}</div>
   </section>`;
 };
+
+function favoritesNote() {
+  const status = Store.sharedStatus();
+  const me = Store.currentStudent();
+  if (status === 'ok' && me) return `Favorite spots for <strong>${esc(me.display_name)}</strong>, shared with your team. Saved filters stay on this device.`;
+  if (status === 'loading') return 'Loading shared favorites…';
+  if (status === 'error') return 'Could not reach the database, so favorites are saved on this device for now.';
+  return 'Saved on this device.';
+}
 
 /* ---------------- Page 10: Add a Spot ---------------- */
 const AddState = {

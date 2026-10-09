@@ -14,6 +14,11 @@ const App = {
   init() {
     window.addEventListener('hashchange', () => { this.navCount++; this.route(); });
     this.route();
+    if (Store.sharedStatus() !== 'off') {
+      this.loadShared();
+      // Pick up teammates' changes when you come back to the tab.
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) this.loadShared(); });
+    }
   },
 
   go(route) {
@@ -65,6 +70,25 @@ const App = {
     window.scrollTo(0, keepScroll ? y : 0);
     const flash = $('.spot-card.is-flash');
     if (flash) flash.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  },
+
+  /** Load shared favorites from Supabase, then redraw. */
+  async loadShared() {
+    await Store.loadShared();
+    this.refresh();
+    if (Store.sharedStatus() === 'error') toast('Could not reach the database. Favorites are saved on this device for now.');
+  },
+
+  /** Toggle a favorite, redraw right away, and undo it if saving fails. */
+  toggleFav(id) {
+    const result = Store.toggleFav(id);
+    this.refresh();
+    result.saved.catch((err) => {
+      console.error('Could not save favorite', err);
+      this.refresh();
+      toast('Could not save that favorite. Check your connection and try again.');
+    });
+    return result;
   },
 
   /** Re-render the current page after data/filters change. */
@@ -141,9 +165,8 @@ document.addEventListener('click', (e) => {
   if (fav) {
     e.stopPropagation();
     const id = fav.dataset.fav;
-    const on = Store.toggleFav(id);
+    const { on } = App.toggleFav(id);
     toast(on ? 'Added to Favorites' : 'Removed from Favorites');
-    App.refresh();
     const again = $(`#spot-dialog [data-fav="${id}"]`) || $(`#app [data-fav="${id}"]`);
     if (again) again.focus();
     return;
@@ -204,7 +227,7 @@ document.addEventListener('click', (e) => {
 
   // Favorites page
   const unfav = t.closest('[data-unfav]');
-  if (unfav) { Store.toggleFav(unfav.dataset.unfav); App.refresh(); toast('Removed from Favorites'); return; }
+  if (unfav) { App.toggleFav(unfav.dataset.unfav); toast('Removed from Favorites'); return; }
   const findSet = (el) => (el.dataset.kind === 'history' ? Store.history() : Store.savedFilters()).find((x) => x.id === (el.dataset.applySet || el.dataset.deleteSet || el.dataset.renameSave));
   const apply = t.closest('[data-apply-set]');
   if (apply) {
@@ -260,6 +283,15 @@ function saveRename(btn) {
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.closest('#filter-panel')) { FilterPanel.handleChange(e); return; }
+  if (t.id === 'student-select') {
+    Store.setStudent(Number(t.value));
+    App.loadShared().then(() => {
+      const me = Store.currentStudent();
+      if (me) toast(`Showing favorites for ${me.display_name}`);
+      const sel = $('#student-select'); if (sel) sel.focus();
+    });
+    return;
+  }
   if (t.id === 'sort-select') { Store.setPref('sort', t.value); App.refresh(); $('#sort-select').focus(); return; }
   if (t.id === 'add-building') {
     AddState.building = t.value;

@@ -1,7 +1,10 @@
 /* =========================================================================
    Store — reads the mock data (data.js) and keeps the user's own data in
-   localStorage: favorites, ratings, active filters, saved filters, filter
-   history, user-added spots, and deleted sample spots.
+   localStorage: ratings, active filters, saved filters, filter history,
+   user-added spots, and deleted sample spots.
+   Favorites of sample spots are shared through Supabase (db.js) for the
+   student picked in the top bar; favorites of spots you added yourself stay
+   on this device because those spots are not in the database yet.
    Every read/write is wrapped in try/catch so the app still works when
    storage is blocked (it falls back to in-memory values).
    ========================================================================= */
@@ -47,19 +50,73 @@ const Store = (() => {
     } else {
       write('deletedSampleIds', Array.from(new Set(deletedIds().concat(id))));
     }
-    write('favorites', favorites().filter((f) => f !== id));
+    write('favorites', localFavorites().filter((f) => f !== id));
     const r = ratings(); delete r[id]; write('ratings', r);
   }
   function restoreSampleSpots() { write('deletedSampleIds', []); }
 
+  /* ---------------- Shared favorites (Supabase) ---------------- */
+  // status: 'off' (no Supabase key), 'loading', 'ok', or 'error'
+  const shared = { status: DB.ready ? 'loading' : 'off', students: [], favDbIds: [] };
+  const spotIdByDbId = (dbId) => { const s = SPOTS.find((x) => x.dbId === dbId); return s ? s.id : null; };
+  const isShared = (spot) => shared.status === 'ok' && spot && spot.dbId != null;
+
+  function sharedStatus() { return shared.status; }
+  function students() { return shared.students; }
+  function currentStudent() {
+    const id = pref('studentId', null);
+    return shared.students.find((u) => u.user_id === id) || shared.students[0] || null;
+  }
+  function setStudent(userId) { setPref('studentId', userId); }
+
+  /** Load the student list and the current student's favorites from Supabase. */
+  async function loadShared() {
+    if (!DB.ready) return;
+    try {
+      shared.students = await DB.students();
+      const me = currentStudent();
+      shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
+      shared.status = 'ok';
+    } catch (e) {
+      console.error('Could not load favorites from Supabase', e);
+      shared.status = 'error';
+    }
+  }
+
   /* ---------------- Favorites & ratings ---------------- */
-  function favorites() { return read('favorites', []); }
+  function localFavorites() { return read('favorites', []); }
+  function favorites() {
+    if (shared.status === 'off' || shared.status === 'error') return localFavorites();
+    const localOnly = localFavorites().filter((id) => { const s = getSpot(id); return s && s.dbId == null; });
+    if (shared.status === 'loading') return localOnly;
+    const fromDb = shared.favDbIds.map(spotIdByDbId).filter(Boolean);
+    return fromDb.concat(localOnly);
+  }
   function isFav(id) { return favorites().includes(id); }
+
+  /**
+   * Toggle a favorite. Returns { on, saved } where `on` is the new state
+   * (shown right away) and `saved` is a promise that rejects if Supabase
+   * refused the change, in which case the change has been undone.
+   */
   function toggleFav(id) {
-    const f = favorites();
-    const next = f.includes(id) ? f.filter((x) => x !== id) : f.concat(id);
-    write('favorites', next);
-    return next.includes(id);
+    const spot = getSpot(id);
+    if (shared.status === 'loading' && spot && spot.dbId != null) {
+      return { on: false, saved: Promise.reject(new Error('Favorites are still loading')) };
+    }
+    if (!isShared(spot)) {
+      const f = localFavorites();
+      const next = f.includes(id) ? f.filter((x) => x !== id) : f.concat(id);
+      write('favorites', next);
+      return { on: next.includes(id), saved: Promise.resolve() };
+    }
+    const me = currentStudent();
+    const before = shared.favDbIds;
+    const on = !before.includes(spot.dbId);
+    shared.favDbIds = on ? before.concat(spot.dbId) : before.filter((x) => x !== spot.dbId);
+    const saved = (on ? DB.addFavorite(me.user_id, spot.dbId) : DB.removeFavorite(me.user_id, spot.dbId))
+      .catch((e) => { shared.favDbIds = before; throw e; });
+    return { on, saved };
   }
   function ratings() { return read('ratings', {}); }
   function getRating(id) { return ratings()[id] || 0; }
@@ -152,6 +209,7 @@ const Store = (() => {
 
   return {
     allSpots, getSpot, addUserSpot, deleteSpot, restoreSampleSpots, deletedIds,
+    sharedStatus, students, currentStudent, setStudent, loadShared,
     favorites, isFav, toggleFav, getRating, setRating,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,
     savedFilters, saveFilterSet, renameSaved, deleteSaved,

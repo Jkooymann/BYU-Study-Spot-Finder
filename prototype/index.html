@@ -19,8 +19,11 @@
   <div id="spot-dialog" class="sheet sheet-spot" role="dialog" aria-modal="true" aria-labelledby="sd-title" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <!-- Order matters: data → store → components → pages → app -->
+  <!-- Order matters: supabase → data → db → store → components → pages → app -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/db.js"></script>
   <script src="js/store.js"></script>
   <script src="js/components.js"></script>
   <script src="js/pages.js"></script>

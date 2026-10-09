@@ -119,7 +119,19 @@ button { cursor: pointer; }
 .nav-link:hover { background: rgba(255,255,255,.1); color: #fff; }
 .nav-link.is-current { background: #fff; color: #072a52; }
 .nav-link .ic { width: 18px; height: 18px; }
-.home-menu-wrap { grid-area: home; position: relative; }
+.topbar-right { grid-area: home; display: flex; align-items: center; gap: 8px; }
+.home-menu-wrap { position: relative; }
+.student-pick {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 4px 0 10px;
+  border: 1px solid rgba(255,255,255,.22); border-radius: 12px; background: rgba(255,255,255,.1); color: #fff;
+}
+.student-pick .ic { width: 16px; height: 16px; flex: none; }
+.student-select {
+  max-width: 120px; min-height: 38px; border: 0; background: transparent; color: inherit;
+  font: inherit; font-weight: 600; font-size: .9rem; cursor: pointer;
+}
+.student-select option { color: var(--text); background: var(--surface); }
+.student-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
 .icon-btn {
   display: inline-grid; place-items: center; width: var(--tap); height: var(--tap); border-radius: 12px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
