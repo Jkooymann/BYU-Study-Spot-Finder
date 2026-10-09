@@ -10,7 +10,7 @@ Favorite spots are saved in the team's Supabase database, so everyone sees them.
 |---|---|
 | `index.html` | The single page shell. Loads the CSS and scripts. |
 | `css/styles.css` | All styles. Colors are tokens at the top (primary navy, accent gold) with a dark-mode set. |
-| `js/supabase-config.js` | The Supabase project URL and public anon key. |
+| `js/supabase-config.js` | The Supabase project URL and publishable key. |
 | `js/data.js` | **The one mock data file.** Buildings, filter list, and 26 study spots across 6 buildings. Each spot's `dbId` is its `study_spot_id` in Supabase. |
 | `js/db.js` | The only file that talks to Supabase: loads students, loads/adds/removes favorites. |
 | `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (ratings, active filters, saved filters, recent filters, user-added spots, deleted sample spots). Also holds the filter-matching logic. |
@@ -43,7 +43,7 @@ Favorite spots are saved in the team's Supabase database, so everyone sees them.
 
 ## Shared favorites (Supabase)
 
-- Needs `supabase/migrations/20261009230000_allow_demo_favorites.sql` and the latest `supabase/seed.sql` in the database, and the anon key in `js/supabase-config.js`.
+- Needs `supabase/migrations/20261009230000_allow_demo_favorites.sql` and the latest `supabase/seed.sql` in the database, and the publishable key in `js/supabase-config.js` (already filled in).
 - The "Viewing as" dropdown lists the rows in `student_user`. Favorites are saved for that student in `favorite_spot`.
 - This is demo-only: anyone with the site can change any sample student's favorites. Real sign-in should replace the dropdown and tighten the policies in that migration.
 - Spots you add yourself on the Add a Spot page are not in the database yet, so favoriting one of those stays on your device.
