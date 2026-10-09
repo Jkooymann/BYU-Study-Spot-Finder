@@ -7,8 +7,7 @@ A website that lists study spots across BYU campus, with a campus map, building 
 | Path | What it is |
 |---|---|
 | `docs/erd/` | Entity-relationship diagram (`erd.png`, `erd.svg`) and the script that draws it (`build_erd.py`). |
-| `docs/notes/prototype-readme.md` | Notes on the front-end prototype: pages, routes, files, and design decisions. |
-| `prototype/` | Front-end prototype (plain HTML/CSS/JS, open `index.html` in a browser). Add the files here. |
+| `prototype/` | Front-end prototype in plain HTML, CSS and JavaScript. Open `prototype/index.html` in a browser; no install or build needed. See [prototype/README.md](prototype/README.md) for pages, routes and design decisions. |
 
 ## Regenerating the ERD
 
