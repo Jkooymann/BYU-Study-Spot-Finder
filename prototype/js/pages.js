@@ -290,7 +290,7 @@ function favoritesNote() {
   const me = Store.currentStudent();
   if (status === 'ok' && me) return `Favorite spots for <strong>${esc(me.display_name)}</strong>, shared with your team. Saved filters stay on this device.`;
   if (status === 'loading') return 'Loading shared favorites…';
-  if (status === 'error') return 'Could not reach the database, so favorites are saved on this device for now.';
+  if (status === 'error') return `${esc(Store.sharedProblem())} Until then, favorites are saved on this device.`;
   return 'Saved on this device.';
 }
 

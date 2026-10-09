@@ -242,7 +242,7 @@ function toast(msg) {
   t.hidden = false;
   t.classList.add('is-on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.classList.remove('is-on'); setTimeout(() => { t.hidden = true; }, 250); }, 2600);
+  toastTimer = setTimeout(() => { t.classList.remove('is-on'); setTimeout(() => { t.hidden = true; }, 250); }, msg.length > 60 ? 7000 : 2600);
 }
 
 /* ---------------- Sheets (shared open/close) ---------------- */

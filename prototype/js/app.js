@@ -76,7 +76,7 @@ const App = {
   async loadShared() {
     await Store.loadShared();
     this.refresh();
-    if (Store.sharedStatus() === 'error') toast('Could not reach the database. Favorites are saved on this device for now.');
+    if (Store.sharedStatus() === 'error') toast(`${Store.sharedProblem()} Favorites are saved on this device for now.`);
   },
 
   /** Toggle a favorite, redraw right away, and undo it if saving fails. */
@@ -86,7 +86,7 @@ const App = {
     result.saved.catch((err) => {
       console.error('Could not save favorite', err);
       this.refresh();
-      toast('Could not save that favorite. Check your connection and try again.');
+      toast(`Could not save that favorite. ${err.code === 'LOADING' ? err.message : DB.explain(err)}`);
     });
     return result;
   },

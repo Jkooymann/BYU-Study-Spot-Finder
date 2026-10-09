@@ -39,5 +39,18 @@ const DB = (() => {
     if (error) throw error;
   }
 
-  return { ready: !!client, students, favoriteSpotIds, addFavorite, removeFavorite };
+  /** Turn a Supabase error into a sentence that says how to fix it. */
+  function explain(err) {
+    const code = err && err.code;
+    const msg = (err && err.message) || String(err);
+    if (code === '23503') return 'That spot is not in the database yet. Run supabase/seed.sql in the Supabase SQL Editor.';
+    if (code === '42501' || code === 'PGRST301' || /permission denied|row-level security/i.test(msg)) {
+      return 'The database blocked this. Run the allow_demo_favorites migration in the Supabase SQL Editor.';
+    }
+    if (code === 'NO_STUDENTS') return msg;
+    if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return 'Could not reach Supabase. Check your internet connection.';
+    return `The database said: ${msg}`;
+  }
+
+  return { ready: !!client, students, favoriteSpotIds, addFavorite, removeFavorite, explain };
 })();

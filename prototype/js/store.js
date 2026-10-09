@@ -57,11 +57,13 @@ const Store = (() => {
 
   /* ---------------- Shared favorites (Supabase) ---------------- */
   // status: 'off' (no Supabase key), 'loading', 'ok', or 'error'
-  const shared = { status: DB.ready ? 'loading' : 'off', students: [], favDbIds: [] };
+  const shared = { status: DB.ready ? 'loading' : 'off', students: [], favDbIds: [], problem: '' };
   const spotIdByDbId = (dbId) => { const s = SPOTS.find((x) => x.dbId === dbId); return s ? s.id : null; };
   const isShared = (spot) => shared.status === 'ok' && spot && spot.dbId != null;
 
   function sharedStatus() { return shared.status; }
+  /** Why the database could not be used, in plain words ('' if fine). */
+  function sharedProblem() { return shared.problem; }
   function students() { return shared.students; }
   function currentStudent() {
     const id = pref('studentId', null);
@@ -74,12 +76,17 @@ const Store = (() => {
     if (!DB.ready) return;
     try {
       shared.students = await DB.students();
-      const me = currentStudent();
-      shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
+      // With row-level security on, a missing policy returns no rows instead of an error.
+      if (!shared.students.length) {
+        throw { code: 'NO_STUDENTS', message: 'No students came back from the database. Run the allow_demo_favorites migration in the Supabase SQL Editor.' };
+      }
+      shared.favDbIds = await DB.favoriteSpotIds(currentStudent().user_id);
       shared.status = 'ok';
+      shared.problem = '';
     } catch (e) {
       console.error('Could not load favorites from Supabase', e);
       shared.status = 'error';
+      shared.problem = DB.explain(e);
     }
   }
 
@@ -102,7 +109,7 @@ const Store = (() => {
   function toggleFav(id) {
     const spot = getSpot(id);
     if (shared.status === 'loading' && spot && spot.dbId != null) {
-      return { on: false, saved: Promise.reject(new Error('Favorites are still loading')) };
+      return { on: false, saved: Promise.reject({ code: 'LOADING', message: 'Favorites are still loading. Try again in a second.' }) };
     }
     if (!isShared(spot)) {
       const f = localFavorites();
@@ -209,7 +216,7 @@ const Store = (() => {
 
   return {
     allSpots, getSpot, addUserSpot, deleteSpot, restoreSampleSpots, deletedIds,
-    sharedStatus, students, currentStudent, setStudent, loadShared,
+    sharedStatus, sharedProblem, students, currentStudent, setStudent, loadShared,
     favorites, isFav, toggleFav, getRating, setRating,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,
     savedFilters, saveFilterSet, renameSaved, deleteSaved,
