@@ -70,6 +70,8 @@ function renderTopBar(pageKey) {
       <nav class="main-nav" aria-label="Main">
         ${link('map', 'Map', 'map')}${link('list', 'List', 'list')}${link('favorites', 'Favorites', 'star')}
       </nav>
+      <div class="topbar-right">
+      ${studentPicker()}
       <div class="home-menu-wrap">
         <button id="home-btn" class="icon-btn home-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="home-menu" aria-label="Home menu">${icon('home')}</button>
         <div id="home-menu" class="home-menu" role="menu" aria-label="Home menu" hidden>
@@ -80,7 +82,20 @@ function renderTopBar(pageKey) {
             </button>`).join('')}
         </div>
       </div>
+      </div>
     </div>`;
+}
+/** "Viewing as" dropdown: which sample student's favorites to show and save (no sign-in yet). */
+function studentPicker() {
+  const list = Store.students();
+  if (Store.sharedStatus() !== 'ok' || !list.length) return '';
+  const me = Store.currentStudent();
+  return `<label class="student-pick" title="Favorites are saved for this student and shared with your team">
+      ${icon('user')}
+      <select id="student-select" class="student-select" aria-label="Viewing as student">
+        ${list.map((u) => `<option value="${u.user_id}"${me && me.user_id === u.user_id ? ' selected' : ''}>${esc(u.display_name)}</option>`).join('')}
+      </select>
+    </label>`;
 }
 function homeMenuOpen() { const m = $('#home-menu'); return m && !m.hidden; }
 function setHomeMenu(open) {

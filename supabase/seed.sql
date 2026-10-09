@@ -1,5 +1,6 @@
 -- Sample data for the BYU Study Spot Finder tables.
--- Buildings and spots match the front-end prototype (prototype/js/data.js).
+-- Buildings and spots match the front-end prototype (prototype/js/data.js);
+-- each spot's study_spot_id is the dbId of the same spot in data.js.
 -- Coordinates, hours and seat counts are approximate sample values.
 -- Safe to run more than once: rows that already exist are skipped.
 
@@ -10,7 +11,8 @@ values
   (2, 'WSC',  'Wilkinson Student Center', 40.248400, -111.646800, 3, '07:00', '23:00'),
   (3, 'JFSB', 'Joseph F. Smith Building', 40.248700, -111.651000, 4, '07:00', '22:00'),
   (4, 'TNRB', 'Tanner Building',          40.250200, -111.654500, 6, '07:00', '22:00'),
-  (5, 'TMCB', 'Talmage Building',         40.249300, -111.651000, 4, '07:00', '23:00')
+  (5, 'TMCB', 'Talmage Building',         40.249300, -111.651000, 4, '07:00', '23:00'),
+  (6, 'ESC',  'Eyring Science Center',    40.247400, -111.648500, 3, '07:00', '22:00')
 on conflict do nothing;
 
 insert into public.student_user
@@ -40,6 +42,31 @@ values
   (11, 5, 3,   'CS Lab Couches',          1, 'Outside the open lab',   true,  12, 3, 'Moderate', 'High',     30, 65, false)
 on conflict do nothing;
 
+-- The rest of the prototype's sample spots (prototype/js/data.js), so every
+-- spot on the website has a matching row and can be saved as a favorite.
+-- The id of each row is the spot's dbId in data.js.
+insert into public.study_spot
+  (study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number, location_description,
+   is_indoors, seat_count, max_group_size, noise_level, typical_busyness_level,
+   floor_plan_x_percent, floor_plan_y_percent, is_sample_spot)
+values
+  (12, 1, null, 'Atrium Lounge Chairs', 4, 'Atrium overlook', true, 24, 4, 'Moderate', 'Moderate', 45, 72, true),
+  (13, 1, null, 'Top Floor Study Nook', 5, 'Southeast corner', true, 12, 1, 'Quiet', 'Low', 85, 80, true),
+  (14, 2, null, 'Ballroom Hallway Lounge', 3, 'Outside the Ballroom', true, 24, 4, 'Moderate', 'Low', 25, 50, true),
+  (15, 3, null, 'Third-Floor Window Seats', 3, 'North windows', true, 12, 1, 'Quiet', 'Low', 78, 18, true),
+  (16, 3, null, 'Fourth-Floor Study Corner', 4, 'Near Room 4010', true, 24, 4, 'Quiet', 'Low', 15, 82, true),
+  (17, 4, null, 'Tanner Atrium Tables', 1, 'Atrium', true, 60, 8, 'Moderate', 'High', 50, 40, true),
+  (18, 4, null, 'Business Group Rooms', 3, 'Rooms 310–330', true, 24, 4, 'Moderate', 'Moderate', 80, 25, true),
+  (19, 4, null, 'Fifth-Floor Quiet Lounge', 5, 'West lounge', true, 12, 1, 'Quiet', 'Low', 20, 70, true),
+  (20, 4, null, 'Tanner Front Patio', 1, 'South entrance', false, 24, 4, 'Moderate', 'Low', 50, 92, true),
+  (21, 5, null, 'CS Lab Commons', 1, 'Open lab area', true, 24, 4, 'Moderate', 'High', 30, 30, true),
+  (22, 5, null, 'Hallway Booths', 2, 'East hallway', true, 24, 4, 'Moderate', 'Moderate', 75, 50, true),
+  (23, 5, null, 'Stairwell Quiet Tables', 3, 'By the north stairs', true, 12, 1, 'Quiet', 'Low', 12, 20, true),
+  (24, 6, null, 'ESC Lobby Tables', 1, 'Main lobby', true, 60, 8, 'Moderate', 'Moderate', 50, 50, true),
+  (25, 6, null, 'Physics Tutoring Lab', 2, 'Room W166', true, 24, 4, 'Moderate', 'High', 25, 75, true),
+  (26, 6, null, 'Upper Hallway Desks', 3, 'South hallway', true, 12, 1, 'Quiet', 'Low', 70, 82, true)
+on conflict do nothing;
+
 insert into public.amenity
   (amenity_id, amenity_name, amenity_icon_name)
 values
@@ -65,7 +92,22 @@ values
   (8, 7),
   (9, 1), (9, 2), (9, 3),
   (10, 1), (10, 2), (10, 4),
-  (11, 1), (11, 2), (11, 4), (11, 6)
+  (11, 1), (11, 2), (11, 4), (11, 6),
+  (12, 1), (12, 2), (12, 4),
+  (13, 1), (13, 2), (13, 3),
+  (14, 1), (14, 2), (14, 4),
+  (15, 2), (15, 4),
+  (16, 1), (16, 2), (16, 3),
+  (17, 1), (17, 2), (17, 3), (17, 5),
+  (18, 1), (18, 2), (18, 3),
+  (19, 1), (19, 2), (19, 4),
+  (20, 2), (20, 3), (20, 5),
+  (21, 1), (21, 2), (21, 3),
+  (22, 1), (22, 2), (22, 3), (22, 4), (22, 5),
+  (23, 1), (23, 2), (23, 3),
+  (24, 1), (24, 2), (24, 3), (24, 5),
+  (25, 1), (25, 2), (25, 3),
+  (26, 1), (26, 2), (26, 3)
 on conflict do nothing;
 
 insert into public.spot_rating
