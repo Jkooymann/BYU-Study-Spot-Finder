@@ -1,9 +1,11 @@
 BYU STUDY SPOT FINDER
 
-App Summary: 
+App Summary:
+
 Many BYU students struggle to find good places to study, especially during busy times when popular spots like the library are too crowded. Students often waste time walking around campus trying to find a spot that fits their needs, whether that's a quiet place, somewhere with outlets, an area for group studying, or some combination of the three. Our app solves this problem by helping BYU students quickly find study spots that match their preferences. Students can search for locations in different buildings and filter them based on features such as noise level, busyness, group size, and available amenities. The app also allows students to rate study spots, leave reviews, and add new locations that other students might not know about. Users can save their favorite study spots and create custom filters to make finding a place even easier in the future. Ultimately, our goal is to help BYU students spend less time looking for somewhere to study and more time actually getting their work done.
 
 ERD:
+
 <img width="1214" height="521" alt="Screenshot 2026-10-10 at 11 34 01 PM" src="https://github.com/user-attachments/assets/a1dee7a7-4f22-41bd-87a3-e18275927548" />
 
 Tech Stack:
