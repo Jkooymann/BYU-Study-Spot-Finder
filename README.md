@@ -8,7 +8,9 @@ ERD:
 
 <img width="1214" height="521" alt="Screenshot 2026-10-10 at 11 34 01 PM" src="https://github.com/user-attachments/assets/a1dee7a7-4f22-41bd-87a3-e18275927548" />
 
+
 Tech Stack:
+
 Frontend: HTML/CSS/JS
 Backend: Supabase
 Database: Supabase
