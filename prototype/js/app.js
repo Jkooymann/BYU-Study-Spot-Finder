@@ -14,7 +14,7 @@ const App = {
   init() {
     window.addEventListener('hashchange', () => { this.navCount++; this.route(); });
     this.route();
-    if (Store.sharedStatus() !== 'off') {
+    if (AccountSession.signedIn && Store.sharedStatus() !== 'off') {
       this.loadShared();
       // Pick up teammates' changes when you come back to the tab.
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.loadShared(); });
@@ -27,7 +27,11 @@ const App = {
   },
 
   route() {
-    const h = location.hash.slice(1) || 'start';
+    let h = location.hash.slice(1) || (AccountSession.signedIn ? 'start' : 'welcome');
+    if (!AccountSession.signedIn && !AccountPages.isPublic(h)) {
+      h = 'welcome';
+      history.replaceState(null, '', '#welcome');
+    }
     setHomeMenu(false);
     FilterPanel.close();
     if (h.startsWith('spot-')) {
@@ -53,7 +57,8 @@ const App = {
   renderBase(h, keepScroll = false) {
     const y = window.scrollY;
     let html;
-    if (h === 'start') html = Pages.start();
+    if (AccountPages.isPublic(h)) html = AccountPages.render(h);
+    else if (h === 'start') html = Pages.start();
     else if (h === 'map') html = Pages.map();
     else if (h.startsWith('map-spot-')) html = Pages.map(h.slice(9));
     else if (h.startsWith('building-')) { const [id, fl] = h.slice(9).split('-f'); html = Pages.building(id, fl); }
@@ -61,11 +66,11 @@ const App = {
     else if (h === 'favorites' || h === 'favorites-filters') html = Pages.favorites(h === 'favorites-filters' ? 'filters' : 'spots');
     else if (h === 'add') html = Pages.add();
     else html = Pages.notFound();
-    renderTopBar(this.pageKeyFor(h));
+    renderTopBar(AccountPages.isPublic(h) ? 'account' : this.pageKeyFor(h));
     $('#app').innerHTML = html;
     this.renderedBase = h;
     const names = { start: 'Get Started', map: 'Campus Map', list: 'Study Spots', favorites: 'Favorites', add: 'Add a Spot' };
-    document.title = `${names[this.pageKeyFor(h)] || 'Floor View'} · BYU Study Spot Finder`;
+    document.title = `${AccountPages.titles[h] || names[this.pageKeyFor(h)] || 'Floor View'} · BYU Study Spot Finder`;
     if (h.startsWith('building-')) document.title = `${(buildingById(h.slice(9).split('-f')[0]) || {}).name || 'Building'} · BYU Study Spot Finder`;
     window.scrollTo(0, keepScroll ? y : 0);
     const flash = $('.spot-card.is-flash');
@@ -93,6 +98,7 @@ const App = {
 
   /** Re-render the current page after data/filters change. */
   refresh() {
+    if (AccountPages.isPublic(this.base)) return; // Never replace a form while someone is typing.
     this.renderBase(this.base, true);
     if (SpotDialog.id) SpotDialog.render();
   },
