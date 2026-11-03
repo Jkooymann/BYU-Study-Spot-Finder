@@ -57,6 +57,10 @@ const HOME_MENU = [
 ];
 
 function renderTopBar(pageKey) {
+  if (pageKey === 'account') {
+    $('#topbar').innerHTML = `<div class="topbar-inner"><a class="brand" href="#welcome" aria-label="BYU Study Spot Finder, Welcome"><span class="brand-mark" aria-hidden="true">${icon('pin')}</span><span class="brand-name"><span class="brand-byu">BYU</span> Study Spot Finder</span></a></div>`;
+    return;
+  }
   const link = (route, label, ic) => {
     const cur = pageKey === route;
     return `<a href="#${route}" class="nav-link${cur ? ' is-current' : ''}"${cur ? ' aria-current="page"' : ''}>${icon(ic)}<span>${label}</span></a>`;
