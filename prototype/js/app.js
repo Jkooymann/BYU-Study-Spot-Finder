@@ -28,8 +28,13 @@ const App = {
 
   route() {
     // Account pages (#welcome, #login, #signup) are optional; the rest of the site works without signing in.
-    const h = location.hash.slice(1) || 'start';
+    let h = location.hash.slice(1) || 'start';
+    // Coming back from a Supabase email link (#access_token=… or #error=…): Supabase reads it, we show Get Started.
+    if (/(^|&)(access_token|error)=/.test(h)) { h = 'start'; history.replaceState(null, '', '#start'); }
+    // Already logged in: skip the Welcome / Log in / Create account pages.
+    if (AccountPages.isPublic(h) && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
     setHomeMenu(false);
+    setAccountMenu(false);
     FilterPanel.close();
     if (h.startsWith('spot-')) {
       const id = h.slice(5);
@@ -95,7 +100,8 @@ const App = {
 
   /** Re-render the current page after data/filters change. */
   refresh() {
-    if (AccountPages.isPublic(this.base)) return; // Never replace a form while someone is typing.
+    // Never replace a form while someone is typing; just update the top bar.
+    if (AccountPages.isPublic(this.base)) { renderTopBar('account'); return; }
     this.renderBase(this.base, true);
     if (SpotDialog.id) SpotDialog.render();
   },
@@ -109,6 +115,11 @@ const App = {
 /* ---------------- Delegated clicks ---------------- */
 document.addEventListener('click', (e) => {
   const t = e.target;
+
+  // Account menu (your name in the top bar)
+  if (t.closest('#account-btn')) { setAccountMenu(!accountMenuOpen()); return; }
+  if (t.closest('[data-sign-out]')) { setAccountMenu(false); AccountSession.signOut(); return; }
+  if (accountMenuOpen() && !t.closest('#account-menu')) setAccountMenu(false);
 
   // Home Menu
   if (t.closest('#home-btn')) { setHomeMenu(!homeMenuOpen()); return; }
@@ -168,7 +179,8 @@ document.addEventListener('click', (e) => {
   if (fav) {
     e.stopPropagation();
     const id = fav.dataset.fav;
-    const { on } = App.toggleFav(id);
+    const { on, needsLogin } = App.toggleFav(id);
+    if (needsLogin) { toast('Log in to save favorites.', { href: '#login', label: 'Log in' }); return; }
     toast(on ? 'Added to Favorites' : 'Removed from Favorites');
     const again = $(`#spot-dialog [data-fav="${id}"]`) || $(`#app [data-fav="${id}"]`);
     if (again) again.focus();
@@ -286,15 +298,6 @@ function saveRename(btn) {
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.closest('#filter-panel')) { FilterPanel.handleChange(e); return; }
-  if (t.id === 'student-select') {
-    Store.setStudent(Number(t.value));
-    App.loadShared().then(() => {
-      const me = Store.currentStudent();
-      if (me) toast(`Showing favorites for ${me.display_name}`);
-      const sel = $('#student-select'); if (sel) sel.focus();
-    });
-    return;
-  }
   if (t.id === 'sort-select') { Store.setPref('sort', t.value); App.refresh(); $('#sort-select').focus(); return; }
   if (t.id === 'add-building') {
     AddState.building = t.value;
@@ -353,6 +356,7 @@ document.addEventListener('submit', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (homeMenuOpen()) { setHomeMenu(false); $('#home-btn').focus(); return; }
+    if (accountMenuOpen()) { setAccountMenu(false); $('#account-btn').focus(); return; }
     if (!$('#filter-panel').hidden) { FilterPanel.close(); return; }
     if (SpotDialog.id) { App.closeSpot(); return; }
     if ($('.map-popup')) { App.go('map'); return; }

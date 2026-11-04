@@ -125,18 +125,14 @@ button { cursor: pointer; }
 .login-btn:hover { background: rgba(255,255,255,.2); }
 .login-btn.is-current { background: #fff; color: #072a52; }
 .login-btn .ic { width: 16px; height: 16px; flex: none; }
-@media (max-width: 480px) { .login-btn { padding: 0 10px; } .login-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
-.student-pick {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 4px 0 10px;
-  border: 1px solid rgba(255,255,255,.22); border-radius: 12px; background: rgba(255,255,255,.1); color: #fff;
-}
-.student-pick .ic { width: 16px; height: 16px; flex: none; }
-.student-select {
-  max-width: 120px; min-height: 38px; border: 0; background: transparent; color: inherit;
-  font: inherit; font-weight: 600; font-size: .9rem; cursor: pointer;
-}
-.student-select option { color: var(--text); background: var(--surface); }
-.student-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+@media (max-width: 480px) { .login-btn { padding: 0 10px; } .login-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
+.login-btn.is-open { background: #fff; color: #072a52; }
+.account-menu-wrap { position: relative; }
+.account-name { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 480px) { .account-name { max-width: 7ch; } }
+.account-menu-head { display: grid; gap: 2px; padding: 10px 12px 12px; border-bottom: 1px solid var(--border); margin-bottom: 6px; overflow-wrap: anywhere; }
+.account-menu-head span { font-size: .82rem; color: var(--muted); }
+.toast-action { color: inherit; margin-left: 8px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .icon-btn {
   display: inline-grid; place-items: center; width: var(--tap); height: var(--tap); border-radius: 12px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
@@ -595,6 +591,8 @@ button { cursor: pointer; }
 .account-switch { margin-top: 24px; text-align: center; font-size: .9rem; color: var(--muted); }
 .account-switch a { font-weight: 700; }
 .account-message { padding: 12px; background: var(--primary-soft); border-radius: var(--r-sm); margin-bottom: 16px; }
+.account-success { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); color: var(--text); line-height: 1.5; }
+.account-success .ic { width: 20px; height: 20px; flex: none; margin-top: 2px; color: var(--accent-ink); }
 .account-card [aria-invalid="true"] { box-shadow: inset 0 0 0 2px var(--danger); }
 @media (max-width: 720px) {
   .account-layout { grid-template-columns: 1fr; gap: 28px; padding: 28px 16px 40px; min-height: auto; }

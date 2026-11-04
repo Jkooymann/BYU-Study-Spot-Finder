@@ -288,7 +288,8 @@ Pages.favorites = (tab) => {
 function favoritesNote() {
   const status = Store.sharedStatus();
   const me = Store.currentStudent();
-  if (status === 'ok' && me) return `Favorite spots for <strong>${esc(me.display_name)}</strong>, shared with your team. Saved filters stay on this device.`;
+  if (status === 'ok' && me) return `Favorite spots saved to <strong>${esc(me.display_name)}</strong>’s account. Saved filters stay on this device.`;
+  if (status === 'ok') return '<a href="#login">Log in</a> to save favorite spots to your account. Saved filters stay on this device.';
   if (status === 'loading') return 'Loading shared favorites…';
   if (status === 'error') return 'Could not reach the database, so favorites are saved on this device for now.';
   return 'Saved on this device.';

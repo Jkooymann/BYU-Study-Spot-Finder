@@ -2,9 +2,10 @@
    Store — reads the mock data (data.js) and keeps the user's own data in
    localStorage: ratings, active filters, saved filters, filter history,
    user-added spots, and deleted sample spots.
-   Favorites of sample spots are shared through Supabase (db.js) for the
-   student picked in the top bar; favorites of spots you added yourself stay
-   on this device because those spots are not in the database yet.
+   Favorites of sample spots are saved in Supabase (db.js) for the student
+   who is logged in; logged-out visitors are asked to log in to save them.
+   Favorites of spots you added yourself stay on this device because those
+   spots are not in the database yet.
    Every read/write is wrapped in try/catch so the app still works when
    storage is blocked (it falls back to in-memory values).
    ========================================================================= */
@@ -57,25 +58,23 @@ const Store = (() => {
 
   /* ---------------- Shared favorites (Supabase) ---------------- */
   // status: 'off' (no Supabase key), 'loading', 'ok', or 'error'
-  const shared = { status: DB.ready ? 'loading' : 'off', students: [], favDbIds: [] };
+  // me: the logged-in student's student_user row, or null when logged out.
+  const shared = { status: DB.ready ? 'loading' : 'off', me: null, favDbIds: [] };
   const spotIdByDbId = (dbId) => { const s = SPOTS.find((x) => x.dbId === dbId); return s ? s.id : null; };
   const isShared = (spot) => shared.status === 'ok' && spot && spot.dbId != null;
 
   function sharedStatus() { return shared.status; }
-  function students() { return shared.students; }
-  function currentStudent() {
-    const id = pref('studentId', null);
-    return shared.students.find((u) => u.user_id === id) || shared.students[0] || null;
-  }
-  function setStudent(userId) { setPref('studentId', userId); }
+  function currentStudent() { return shared.me; }
+  /** True when favorites need a login (the database is up but nobody is logged in). */
+  function needsLogin() { return shared.status === 'ok' && !shared.me; }
 
-  /** Load the student list and the current student's favorites from Supabase. */
+  /** Load who is logged in and their favorites from Supabase. */
   async function loadShared() {
     if (!DB.ready) return;
     try {
-      shared.students = await DB.students();
-      const me = currentStudent();
+      const me = await DB.currentStudent();
       shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
+      shared.me = me;
       shared.status = 'ok';
     } catch (e) {
       console.error('Could not load favorites from Supabase', e);
@@ -87,6 +86,7 @@ const Store = (() => {
   function localFavorites() { return read('favorites', []); }
   function favorites() {
     if (shared.status === 'off' || shared.status === 'error') return localFavorites();
+    if (needsLogin()) return [];
     const localOnly = localFavorites().filter((id) => { const s = getSpot(id); return s && s.dbId == null; });
     if (shared.status === 'loading') return localOnly;
     const fromDb = shared.favDbIds.map(spotIdByDbId).filter(Boolean);
@@ -101,6 +101,7 @@ const Store = (() => {
    */
   function toggleFav(id) {
     const spot = getSpot(id);
+    if (needsLogin()) return { on: false, needsLogin: true, saved: Promise.resolve() };
     if (shared.status === 'loading' && spot && spot.dbId != null) {
       return { on: false, saved: Promise.reject(new Error('Favorites are still loading')) };
     }
@@ -209,7 +210,7 @@ const Store = (() => {
 
   return {
     allSpots, getSpot, addUserSpot, deleteSpot, restoreSampleSpots, deletedIds,
-    sharedStatus, students, currentStudent, setStudent, loadShared,
+    sharedStatus, currentStudent, needsLogin, loadShared,
     favorites, isFav, toggleFav, getRating, setRating,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,
     savedFilters, saveFilterSet, renameSaved, deleteSaved,

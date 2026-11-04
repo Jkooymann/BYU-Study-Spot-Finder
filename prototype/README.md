@@ -41,58 +41,40 @@ Favorite spots are saved in the team's Supabase database, so everyone sees them.
 - Group size is shown as a large picker above the Map, Floor View, and List, and at the top of the Filter Panel.
 - To reset all user data, clear the site's localStorage (keys start with `byuStudySpots.`).
 
-## Shared favorites (Supabase)
+## Favorites (Supabase)
 
-- Needs `supabase/migrations/20261009230000_allow_demo_favorites.sql` and the latest `supabase/seed.sql` in the database, and the publishable key in `js/supabase-config.js` (already filled in).
-- The "Viewing as" dropdown lists the rows in `student_user`. Favorites are saved for that student in `favorite_spot`.
-- This is demo-only: anyone with the site can change any sample student's favorites. Real sign-in should replace the dropdown and tighten the policies in that migration.
+- Needs the migrations in `supabase/migrations/` applied to the database, and the publishable key in `js/supabase-config.js` (already filled in).
+- Favorites are saved in `favorite_spot` for the logged-in student. Logged-out visitors who tap a star are asked to log in, and the Favorites page links to Log in.
 - Spots you add yourself on the Add a Spot page are not in the database yet, so favoriting one of those stays on your device.
 - If the key is missing or the database can't be reached, the site falls back to saving favorites on your device and says so on the Favorites page.
-- Teammates' changes show up when you reload or come back to the tab.
+- Still demo-level security: the favorites policies in `*_allow_demo_favorites.sql` let anyone change any row. They should be tightened to `auth.uid()` so students can only change their own favorites.
 
-## Account pages and teammate handoff
+## Accounts
 
-Visitors land on `#start` and can use the whole site without signing in. The
+Visitors land on `#start` and can use the whole site without logging in. The
 **Log in** button in the top bar (left of the Home button) opens `#welcome`, with
-`#signup` and `#login` available from there. Account pages use the normal header.
+`#signup` and `#login` available from there.
 
-`js/account.js` owns the forms and integration boundary. Signup validates a Net ID,
-a password of at least 8 characters, and a matching confirmation. Net IDs are
-trimmed and lowercased; a pasted `@byu.edu` suffix is accepted and normalized.
-Other email domains and spaces are rejected. Passwords are kept exactly as typed.
-
-Connect `AccountAPI.createAccount({ email, netId, password })` to the auth provider.
-For example, Net ID `jsmith` produces email `jsmith@byu.edu`. Confirmation passwords
-are validated locally and are never included in the payload. Do not store plaintext
-passwords in a database table; send them to the authentication provider. The existing
-`DB.signUp` helper is available for the teammate implementing this connection.
-
-The adapter must resolve to `{ authenticated: false }` when creation succeeds but
-email confirmation or login is still needed, or `{ authenticated: true }` only when
-a signed-in session has been verified. Rejections display a generic error, clear
-password fields, and allow retry. Pending submits are disabled; leaving the form
-prevents a late response from redirecting the user. The default adapter deliberately
-rejects until connected, so it never claims to have created an account.
-
-Login is a styled placeholder and does not authenticate. The login implementer
-should call `AccountSession.completeSignIn()` only after verifying authentication.
-Session restoration is also left to that integration; the current flag is memory
-only and resets on reload. This client-side route guard establishes the UI flow;
-actual data protection must use provider authentication and database policies.
-The existing demo student picker/shared-favorites behavior is unchanged and must
-be replaced with authenticated-user ownership as part of that work.
-
-Credentials are never written to browser storage or logs. Backend refreshes do not
-rerender account forms while someone types. The signup form includes visible labels,
-inline validation, focus management, password visibility, and mobile/dark styles.
+- **Create account** (`js/account.js`) asks for name, BYU Net ID, password (8+ characters)
+  and a matching confirmation, then calls
+  `DB.signUp({ email, password, displayName, netId })`. Net ID `jsmith` becomes
+  `jsmith@byu.edu`. Supabase Auth stores the login, and the trigger in
+  `*_save_new_users.sql` adds the person to `student_user`.
+- After sign-up the user is sent to **Log in** with their Net ID filled in. If
+  Supabase's "Confirm email" setting is on, the page tells them to click the link in
+  their BYU email first. The link returns to this site (see `emailRedirectTo` in
+  `js/db.js`; that address must be allowed under Authentication → URL Configuration).
+- **Log in** calls `DB.signIn`, loads the student's favorites and shows their name in
+  the top bar. Clicking the name opens a menu with **Log out**.
+- Supabase keeps the session in the browser, so people stay logged in after a reload.
+  Logged-in users who open `#welcome`, `#login` or `#signup` are sent to Get Started.
+- Passwords go straight to Supabase and are never stored or logged by the site.
 
 ### Account flow browser checks
 
 With the prototype server running on port 8000, run
 `python3 prototype/tests/account_flow.py` from the repository root. This requires
 Python Playwright and Chromium (`CHROMIUM_PATH` can override `/usr/bin/chromium`;
-`TEST_BASE_URL` can override the local server URL). The checks block external
-requests and mock account adapters, so no shared accounts or favorites are changed.
-They cover validation, the normalized payload, adapter failure and success,
-login placeholder, route gating, reload behavior, existing cards, and responsive
-layout overflow. These checks do not validate real authentication or Supabase writes.
+`TEST_BASE_URL` can override the local server URL; `CONFIRM=1` simulates email
+confirmation being on). The checks replace `js/db.js` with an in-memory fake and
+block external requests, so no real accounts or favorites are changed.

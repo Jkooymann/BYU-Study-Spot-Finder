@@ -1,8 +1,7 @@
 /* =========================================================================
    DB — the only file that talks to Supabase.
-   Favorites are stored in the favorite_spot table so the whole team sees
-   them. There is no sign-in yet: the site acts as whichever sample student
-   is picked in the top bar (see supabase/migrations/*_allow_demo_favorites.sql).
+   Favorites are stored in the favorite_spot table for the logged-in student
+   (Supabase Auth; see the Accounts section below).
    If the Supabase script or key is missing, DB.ready is false and the site
    falls back to saving favorites on this device only.
    ========================================================================= */
@@ -57,7 +56,12 @@ const DB = (() => {
     const { data, error } = await client.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName || '', byu_net_id: netId || '' } },
+      options: {
+        data: { display_name: displayName || '', byu_net_id: netId || '' },
+        // Where the confirmation email's link sends people (this site's address).
+        // Must be listed under Authentication → URL Configuration in Supabase.
+        emailRedirectTo: location.origin + location.pathname,
+      },
     });
     if (error) throw error;
     // No session yet means Supabase sent a confirmation email first.
