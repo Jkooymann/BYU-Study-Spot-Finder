@@ -66,7 +66,7 @@ const AccountPages = {
       content = `<span class="account-badge">${icon('map')}</span><h2 id="account-title">Find a place to focus.</h2><p class="account-sub">Log in or create an account to save your favorite study spots.</p><div class="account-actions"><a class="btn btn-primary btn-lg" href="#signup">Create an account</a><a class="btn btn-ghost btn-lg" href="#login">Log in</a></div><p class="account-note">Made for the way you study at BYU.</p>`;
     } else {
       const signup = route === 'signup';
-      const created = !signup && this.createdMessage();
+      const created = signup ? '' : this.createdMessage();
       const netIdValue = !signup && AccountSession.justCreated ? esc(AccountSession.justCreated.netId) : '';
       content = `<a class="account-back" href="#welcome">${icon('back')}Back</a><h2 id="account-title">${signup ? 'Make yourself at home.' : 'Welcome back.'}</h2><p class="account-sub">${signup ? 'Create your account with your BYU Net ID.' : 'Log in with your BYU account to find your next spot.'}</p>
         ${created}

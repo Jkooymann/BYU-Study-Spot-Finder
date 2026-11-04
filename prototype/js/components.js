@@ -49,7 +49,7 @@ const groupLabel = (key) => (GROUP_SIZES.find((g) => g.key === key) || {}).label
 
 /* ---------------- Top bar + Home Menu ---------------- */
 const HOME_MENU = [
-  { key: 'favorites', label: 'Favorites', sub: 'Favorites & saved filters', icon: 'star', route: 'favorites' },
+  { key: 'favorites', label: 'Favorites', sub: 'Your saved study spots', icon: 'star', route: 'favorites' },
   { key: 'list', label: 'Study Spot List', sub: 'Browse every spot', icon: 'list', route: 'list' },
   { key: 'map', label: 'Campus Map', sub: 'Explore by building', icon: 'map', route: 'map' },
   { key: 'start', label: 'Start Over', sub: 'Clears active filters', icon: 'refresh', route: 'start', clear: true },
@@ -185,7 +185,7 @@ function activeFiltersBar() {
     <button type="button" class="link-btn" data-clear-filters>Clear all</button>
   </div>`;
 }
-/* Read-only chips for saved filter sets */
+/* Read-only chips for a set of filters */
 function filterChips(f) {
   const items = Store.describe(f);
   return `<div class="chip-row">${items.map((i) => `<span class="chip chip-static${i.group ? ' chip-group' : ''}">${esc(i.label)}</span>`).join('')}</div>`;
@@ -282,10 +282,8 @@ function syncBackdrop() {
 /* ---------------- Filter Panel (Component 8) ---------------- */
 const FilterPanel = {
   draft: null,
-  saving: false,
   open() {
     this.draft = Store.getFilters();
-    this.saving = false;
     this.render();
     $('#filter-panel').hidden = false;
     syncBackdrop();
@@ -327,20 +325,10 @@ const FilterPanel = {
             ${BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => `<option value="${b.id}" ${d.building === b.id ? 'selected' : ''}>${esc(b.name)} (${b.short})</option>`).join('')}
           </select>
         </section>
-        <section class="fp-section fp-save" ${this.saving ? '' : 'hidden'}>
-          <label class="fp-h" for="fp-save-name">Name this filter set</label>
-          <div class="inline-form">
-            <input id="fp-save-name" class="input" type="text" maxlength="40" placeholder="e.g., Quiet + outlets">
-            <button type="button" class="btn btn-primary btn-sm" data-fp-save-confirm>Save</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-fp-save-cancel>Cancel</button>
-          </div>
-          <p class="field-error" id="fp-save-error" hidden></p>
-        </section>
       </div>
       <footer class="sheet-foot">
         <div class="sheet-foot-row">
           <button type="button" class="btn btn-ghost" data-fp-reset>Reset</button>
-          <button type="button" class="btn btn-secondary" data-fp-save>Save these filters</button>
         </div>
         <button type="button" class="btn btn-primary btn-block" data-fp-apply id="fp-apply"></button>
       </footer>`;
@@ -356,33 +344,16 @@ const FilterPanel = {
     const t = e.target.closest('button, input, select');
     if (!t) return;
     if (t.id === 'fp-close') return this.close();
-    if (t.matches('[data-fp-group]')) { this.draft.groupSize = t.dataset.fpGroup; return this.rerenderKeepSave(); }
-    if (t.matches('[data-fp-indoors]')) { this.draft.indoors = false; return this.rerenderKeepSave(); }
-    if (t.matches('[data-fp-reset]')) { this.draft = Store.emptyFilters(); return this.rerenderKeepSave(); }
-    if (t.matches('[data-fp-save]')) {
-      if (!Store.isActive(this.draft)) { toast('Pick at least one filter to save.'); return; }
-      this.saving = true; $('.fp-save').hidden = false; $('#fp-save-name').focus(); return;
-    }
-    if (t.matches('[data-fp-save-cancel]')) { this.saving = false; $('.fp-save').hidden = true; return; }
-    if (t.matches('[data-fp-save-confirm]')) return this.confirmSave();
+    if (t.matches('[data-fp-group]')) { this.draft.groupSize = t.dataset.fpGroup; return this.render(); }
+    if (t.matches('[data-fp-indoors]')) { this.draft.indoors = false; return this.render(); }
+    if (t.matches('[data-fp-reset]')) { this.draft = Store.emptyFilters(); return this.render(); }
     if (t.matches('[data-fp-apply]')) {
       Store.setFilters(this.draft);
-      Store.pushHistory(this.draft);
       this.close();
       App.refresh();
       toast(`Showing ${plural(Store.filtered().length, 'matching spot')}`);
     }
   },
-  confirmSave() {
-    const name = $('#fp-save-name').value.trim();
-    const err = $('#fp-save-error');
-    if (!name) { err.textContent = 'Give this filter set a name, like “Quiet + outlets”.'; err.hidden = false; $('#fp-save-name').focus(); return; }
-    Store.saveFilterSet(name, this.draft);
-    this.saving = false;
-    $('.fp-save').hidden = true;
-    toast(`Saved “${name}” to Favorites`);
-  },
-  rerenderKeepSave() { const name = $('#fp-save-name') ? $('#fp-save-name').value : ''; this.render(); if (this.saving) $('#fp-save-name').value = name; },
   handleChange(e) {
     const t = e.target;
     if (t.matches('[data-fp-feature]')) this.draft.features[t.dataset.fpFeature] = t.checked;

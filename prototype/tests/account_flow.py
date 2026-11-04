@@ -63,7 +63,7 @@ with sync_playwright() as p:
     assert page.locator('.login-btn').inner_text() == 'Log in'
     page.locator('.spot-card [data-fav]').first.click()
     assert 'Log in to save favorites' in page.locator('#toast').inner_text()
-    page.locator('.login-btn').click(); page.wait_for_url('**/#welcome')
+    page.locator('.login-btn').click(); page.wait_for_url('**/#welcome'); page.wait_for_selector('a[href="#signup"]')
     page.get_by_role('link', name='Create an account', exact=True).click()
 
     def fill(name='Jane Smith', net=' JSmith@BYU.edu ', confirm='valid-password'):
@@ -85,7 +85,7 @@ with sync_playwright() as p:
     page.get_by_role('button', name='Hide', exact=True).click()
 
     # Sign up -> Log in page (not logged in yet), Net ID pre-filled
-    submit('Create account'); page.wait_for_url('**/#login')
+    submit('Create account'); page.wait_for_url('**/#login'); page.wait_for_selector('.account-success')  # wait for the page to redraw, not just the URL
     call = page.evaluate("window.fakeCalls.find((c) => c[0] === 'signUp')[1]")
     assert call == {'email': 'jsmith@byu.edu', 'netId': 'jsmith', 'password': 'valid-password', 'displayName': 'Jane Smith'}, call
     assert page.locator('.account-success').is_visible()
@@ -96,7 +96,7 @@ with sync_playwright() as p:
     page.locator('#account-password').fill('nope'); submit('Log in')
     assert 'don’t match' in page.locator('#account-message').inner_text()
     page.locator('#account-password').fill('valid-password'); submit('Log in')
-    page.wait_for_url('**/#start')
+    page.wait_for_url('**/#start'); page.wait_for_selector('#account-btn')
     assert page.locator('#account-btn').inner_text() == 'Jane Smith'
 
     # Favorites are saved for this account and survive a reload

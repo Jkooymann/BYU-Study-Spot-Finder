@@ -2,7 +2,7 @@
    App — hash router + all delegated event handling.
    Routes:  #start  #map  #map-spot-<id>  #building-<id>[-f<floor>]
             #spot-<id> (Spot Details over the page you came from)
-            #list  #favorites  #favorites-filters  #add
+            #list  #favorites  #add
    ========================================================================= */
 
 const App = {
@@ -65,7 +65,7 @@ const App = {
     else if (h.startsWith('map-spot-')) html = Pages.map(h.slice(9));
     else if (h.startsWith('building-')) { const [id, fl] = h.slice(9).split('-f'); html = Pages.building(id, fl); }
     else if (h === 'list') html = Pages.list();
-    else if (h === 'favorites' || h === 'favorites-filters') html = Pages.favorites(h === 'favorites-filters' ? 'filters' : 'spots');
+    else if (h === 'favorites' || h === 'favorites-filters') html = Pages.favorites(); // old saved-filters link still works
     else if (h === 'add') html = Pages.add();
     else html = Pages.notFound();
     renderTopBar(AccountPages.isPublic(h) ? 'account' : this.pageKeyFor(h));
@@ -210,7 +210,6 @@ document.addEventListener('click', (e) => {
     const f = Store.getFilters();
     f.groupSize = qg.dataset.quickGroup;
     Store.setFilters(f);
-    if (Store.isActive(f)) Store.pushHistory(f);
     App.refresh();
     const again = $(`[data-quick-group="${qg.dataset.quickGroup}"]`); again && again.focus();
     return;
@@ -229,7 +228,6 @@ document.addEventListener('click', (e) => {
     const f = Store.emptyFilters();
     StartState.selected.forEach((k) => { if (k === 'indoors') f.indoors = true; else f.features[k] = true; });
     Store.setFilters(f);
-    Store.pushHistory(f);
     App.go('list');
     return;
   }
@@ -247,28 +245,6 @@ document.addEventListener('click', (e) => {
   // Favorites page
   const unfav = t.closest('[data-unfav]');
   if (unfav) { App.toggleFav(unfav.dataset.unfav); toast('Removed from Favorites'); return; }
-  const findSet = (el) => (el.dataset.kind === 'history' ? Store.history() : Store.savedFilters()).find((x) => x.id === (el.dataset.applySet || el.dataset.deleteSet || el.dataset.renameSave));
-  const apply = t.closest('[data-apply-set]');
-  if (apply) {
-    const set = findSet(apply);
-    Store.setFilters(set.filters);
-    Store.pushHistory(set.filters);
-    toast(set.name ? `Applied “${set.name}”` : 'Filters applied');
-    App.go('list');
-    return;
-  }
-  const ren = t.closest('[data-rename]');
-  if (ren) { FavState.renaming = ren.dataset.rename; App.refresh(); const i = $(`#rename-${ren.dataset.rename}`); i.focus(); i.select(); return; }
-  if (t.closest('[data-rename-cancel]')) { FavState.renaming = null; App.refresh(); return; }
-  const rs = t.closest('[data-rename-save]');
-  if (rs) { saveRename(rs); return; }
-  const del = t.closest('[data-delete-set]');
-  if (del) {
-    if (del.dataset.kind === 'history') Store.deleteHistory(del.dataset.deleteSet); else Store.deleteSaved(del.dataset.deleteSet);
-    App.refresh(); toast('Filter set deleted');
-    return;
-  }
-
   // Add a Spot
   const fl = t.closest('[data-add-floor]');
   if (fl) { AddState.floor = Number(fl.dataset.addFloor); AddState.pin = null; App.refresh(); $(`[data-add-floor="${fl.dataset.addFloor}"]`).focus(); return; }
@@ -287,16 +263,6 @@ document.addEventListener('click', (e) => {
     App.refresh();
   }
 });
-
-function saveRename(btn) {
-  const id = btn.dataset.renameSave;
-  const name = $(`#rename-${id}`).value.trim();
-  if (!name) { toast('Type a name first.'); return; }
-  if (btn.dataset.kind === 'history') Store.renameHistory(id, name); else Store.renameSaved(id, name);
-  FavState.renaming = null;
-  App.refresh();
-  toast('Renamed');
-}
 
 /* ---------------- Inputs ---------------- */
 document.addEventListener('change', (e) => {
@@ -384,11 +350,6 @@ document.addEventListener('keydown', (e) => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-open-spot]:not(button), [data-building]')) {
     e.preventDefault();
     e.target.click();
-  }
-  if (e.key === 'Enter' && e.target.id === 'fp-save-name') { e.preventDefault(); FilterPanel.confirmSave(); }
-  if (e.key === 'Enter' && e.target.id && e.target.id.startsWith('rename-')) {
-    e.preventDefault();
-    saveRename($(`[data-rename-save="${e.target.id.slice(7)}"]`));
   }
   // Arrow keys inside the Home Menu
   if (homeMenuOpen() && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {

@@ -220,35 +220,9 @@ Pages.list = () => {
   </section>`;
 };
 
-/* ---------------- Page 9: Favorites & Saved Filters ---------------- */
-const FavState = { renaming: null };
-Pages.favorites = (tab) => {
-  tab = tab === 'filters' ? 'filters' : 'spots';
+/* ---------------- Page 9: Favorites ---------------- */
+Pages.favorites = () => {
   const favs = Store.favorites().map((id) => Store.getSpot(id)).filter(Boolean);
-  const saved = Store.savedFilters();
-  const hist = Store.history();
-  const fmt = (t) => new Date(t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-
-  const filterItem = (item, kind) => {
-    const renaming = FavState.renaming === item.id;
-    const name = item.name || (kind === 'history' ? 'Unnamed search' : 'Untitled');
-    return `<li class="saved-item">
-      <div class="saved-top">
-        ${renaming ? `<div class="inline-form">
-            <label class="sr-only" for="rename-${item.id}">New name</label>
-            <input id="rename-${item.id}" class="input" type="text" maxlength="40" value="${esc(item.name)}" placeholder="e.g., Quiet + outlets">
-            <button type="button" class="btn btn-primary btn-sm" data-rename-save="${item.id}" data-kind="${kind}">Save</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-rename-cancel>Cancel</button></div>`
-          : `<div><h3 class="saved-name${item.name ? '' : ' is-unnamed'}">${esc(name)}</h3>${kind === 'history' ? `<p class="saved-time">Used ${fmt(item.usedAt)}</p>` : ''}</div>`}
-      </div>
-      ${filterChips(item.filters)}
-      <div class="saved-actions">
-        <button type="button" class="btn btn-primary btn-sm" data-apply-set="${item.id}" data-kind="${kind}">Apply</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-rename="${item.id}">Rename</button>
-        <button type="button" class="btn btn-ghost btn-sm danger-text" data-delete-set="${item.id}" data-kind="${kind}">Delete</button>
-      </div>
-    </li>`;
-  };
 
   const spotsPanel = favs.length
     ? `<ul class="fav-list">${favs.map((s) => {
@@ -267,29 +241,17 @@ Pages.favorites = (tab) => {
       }).join('')}</ul>`
     : `<div class="empty"><p class="empty-title">No favorites yet</p><p>Tap the ★ on any spot to save it here.</p><a class="btn btn-primary" href="#list">Browse study spots</a></div>`;
 
-  const filtersPanel = `
-    <h2 class="section-h">Your saved filters</h2>
-    ${saved.length ? `<ul class="saved-list">${saved.map((i) => filterItem(i, 'saved')).join('')}</ul>`
-      : `<div class="empty empty-sm"><p>No saved filters yet. Open <strong>Filters</strong> on the Map or List and choose “Save these filters”.</p></div>`}
-    <h2 class="section-h">Recent <span class="section-sub">Last 5 filter combinations you used</span></h2>
-    ${hist.length ? `<ul class="saved-list">${hist.map((i) => filterItem(i, 'history')).join('')}</ul>`
-      : `<div class="empty empty-sm"><p>Filters you use with <strong>Go</strong> or <strong>Apply</strong> will show up here.</p></div>`}`;
-
   return `<section class="page">
     <div class="page-head"><div><h1>Favorites</h1><p class="sub">${favoritesNote()}</p></div></div>
-    <div class="tabs" role="tablist" aria-label="Favorites sections">
-      <a role="tab" class="tab${tab === 'spots' ? ' is-on' : ''}" aria-selected="${tab === 'spots'}" href="#favorites">${icon('star')}Favorite spots<span class="count-pill">${favs.length}</span></a>
-      <a role="tab" class="tab${tab === 'filters' ? ' is-on' : ''}" aria-selected="${tab === 'filters'}" href="#favorites-filters">${icon('filter')}Saved filters<span class="count-pill">${saved.length}</span></a>
-    </div>
-    <div class="tab-panel" role="tabpanel">${tab === 'spots' ? spotsPanel : filtersPanel}</div>
+    ${spotsPanel}
   </section>`;
 };
 
 function favoritesNote() {
   const status = Store.sharedStatus();
   const me = Store.currentStudent();
-  if (status === 'ok' && me) return `Favorite spots saved to <strong>${esc(me.display_name)}</strong>’s account. Saved filters stay on this device.`;
-  if (status === 'ok') return '<a href="#login">Log in</a> to save favorite spots to your account. Saved filters stay on this device.';
+  if (status === 'ok' && me) return `Favorite spots saved to <strong>${esc(me.display_name)}</strong>’s account.`;
+  if (status === 'ok') return '<a href="#login">Log in</a> to save favorite spots to your account.';
   if (status === 'loading') return 'Loading shared favorites…';
   if (status === 'error') return 'Could not reach the database, so favorites are saved on this device for now.';
   return 'Saved on this device.';

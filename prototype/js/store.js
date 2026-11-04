@@ -1,7 +1,6 @@
 /* =========================================================================
    Store — reads the mock data (data.js) and keeps the user's own data in
-   localStorage: ratings, active filters, saved filters, filter history,
-   user-added spots, and deleted sample spots.
+   localStorage: ratings, active filters, user-added spots, and deleted sample spots.
    Favorites and spots added on the Add a Spot page are saved in Supabase
    (db.js) for the student who is logged in; logged-out visitors are asked
    to log in to save them. If Supabase is off or can't be reached, new spots
@@ -217,28 +216,6 @@ const Store = (() => {
   }
   const keyOf = (f) => JSON.stringify(normalize(f));
 
-  /* ---------------- Saved filters & history ---------------- */
-  function savedFilters() { return read('savedFilters', []); }
-  function saveFilterSet(name, f) {
-    const item = { id: 'f' + Date.now().toString(36), name, filters: normalize(f) };
-    write('savedFilters', [item].concat(savedFilters()));
-    return item;
-  }
-  function renameSaved(id, name) { write('savedFilters', savedFilters().map((x) => (x.id === id ? { ...x, name } : x))); }
-  function deleteSaved(id) { write('savedFilters', savedFilters().filter((x) => x.id !== id)); }
-
-  function history() { return read('filterHistory', []); }
-  function pushHistory(f) {
-    if (!isActive(f)) return;
-    const k = keyOf(f);
-    const old = history().find((h) => keyOf(h.filters) === k);
-    const rest = history().filter((h) => keyOf(h.filters) !== k);
-    const item = { id: 'h' + Date.now().toString(36), name: old ? old.name : '', usedAt: Date.now(), filters: normalize(f) };
-    write('filterHistory', [item].concat(rest).slice(0, 5));
-  }
-  function renameHistory(id, name) { write('filterHistory', history().map((x) => (x.id === id ? { ...x, name } : x))); }
-  function deleteHistory(id) { write('filterHistory', history().filter((x) => x.id !== id)); }
-
   /* ---------------- Small UI preferences ---------------- */
   function pref(key, fallback) { return read('pref.' + key, fallback); }
   function setPref(key, value) { write('pref.' + key, value); }
@@ -248,8 +225,6 @@ const Store = (() => {
     sharedStatus, currentStudent, needsLogin, loadShared,
     favorites, isFav, toggleFav, getRating, setRating,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,
-    savedFilters, saveFilterSet, renameSaved, deleteSaved,
-    history, pushHistory, renameHistory, deleteHistory,
     pref, setPref, clone,
   };
 })();

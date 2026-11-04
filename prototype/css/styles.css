@@ -462,8 +462,6 @@ button { cursor: pointer; }
 .check input:checked + .check-box .ic { opacity: 1; }
 .check:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
 .fp-note { font-size: .88rem; color: var(--muted); }
-.inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.inline-form .input { flex: 1 1 180px; width: auto; }
 .field-error { color: var(--danger); font-size: .88rem; font-weight: 600; }
 
 /* Spot details */
@@ -502,12 +500,7 @@ button { cursor: pointer; }
 .sd-danger .btn-ghost.danger-text { align-self: flex-start; border-color: transparent; padding-left: 4px; }
 
 /* ---------------- Favorites ---------------- */
-.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface-2); }
-.tab { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--tap); border-radius: 11px; text-decoration: none; color: var(--muted); font-weight: 700; font-size: .95rem; }
-.tab .ic { width: 18px; height: 18px; }
-.tab.is-on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-.tab-panel { display: flex; flex-direction: column; gap: 14px; }
-.fav-list, .saved-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.fav-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .fav-item { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: start; padding: 14px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
 .fav-star { color: var(--accent); padding-top: 2px; }
 .fav-text { min-width: 0; }
@@ -516,11 +509,6 @@ button { cursor: pointer; }
 .fav-text .spot-meta { margin-top: 2px; }
 .fav-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
 @media (min-width: 640px) { .fav-item { grid-template-columns: auto 1fr auto; align-items: center; } .fav-actions { grid-column: auto; } }
-.saved-item { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); }
-.saved-name { font-size: 1.05rem; font-weight: 700; }
-.saved-name.is-unnamed { color: var(--muted); font-style: italic; font-weight: 600; }
-.saved-time { font-size: .82rem; color: var(--muted); }
-.saved-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---------------- Add a Spot form ---------------- */
 .form { display: flex; flex-direction: column; gap: 22px; }
