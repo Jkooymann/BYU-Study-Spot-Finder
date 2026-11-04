@@ -14,7 +14,7 @@ const App = {
   init() {
     window.addEventListener('hashchange', () => { this.navCount++; this.route(); });
     this.route();
-    if (AccountSession.signedIn && Store.sharedStatus() !== 'off') {
+    if (Store.sharedStatus() !== 'off') {
       this.loadShared();
       // Pick up teammates' changes when you come back to the tab.
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.loadShared(); });
@@ -27,11 +27,8 @@ const App = {
   },
 
   route() {
-    let h = location.hash.slice(1) || (AccountSession.signedIn ? 'start' : 'welcome');
-    if (!AccountSession.signedIn && !AccountPages.isPublic(h)) {
-      h = 'welcome';
-      history.replaceState(null, '', '#welcome');
-    }
+    // Account pages (#welcome, #login, #signup) are optional; the rest of the site works without signing in.
+    const h = location.hash.slice(1) || 'start';
     setHomeMenu(false);
     FilterPanel.close();
     if (h.startsWith('spot-')) {

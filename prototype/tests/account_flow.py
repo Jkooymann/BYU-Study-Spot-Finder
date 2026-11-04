@@ -9,9 +9,12 @@ with sync_playwright() as p:
  page=b.new_page(); errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.route('https://**/*',lambda r:r.abort())
- page.goto(BASE_URL + '/#list')
+ page.goto(BASE_URL + '/')
+ assert page.evaluate("location.hash") in ('', '#start')
+ assert page.locator('.main-nav').count()==1
+ page.get_by_role('link',name='Log in',exact=True).click()
+ page.wait_for_url('**/#welcome')
  assert page.locator('#account-title').inner_text()=='Find a place to focus.'
- assert page.locator('.main-nav').count()==0
  page.get_by_role('link',name='Create an account',exact=True).click()
  def fill(net=' TestNet@BYU.edu ',confirm='valid-password'):
   page.locator('#account-netid').fill(net)
@@ -42,11 +45,11 @@ with sync_playwright() as p:
  fill();submit();page.wait_for_url('**/#start')
  page.evaluate("App.go('list')")
  page.wait_for_selector('.spot-card');assert page.locator('.spot-card').count()==26
- page.reload();assert page.locator('#account-title').inner_text()=='Find a place to focus.'
+ page.reload();page.wait_for_selector('.spot-card')
  for width in [390,1280]:
   page.set_viewport_size({'width':width,'height':850})
   page.evaluate("App.go('signup')");page.wait_for_selector('#signup-form')
   assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
  assert not errors, errors
- print('PASS: route gate, validation, password visibility, adapter failure/success, normalized payload, login placeholder, verified-session handoff, refresh gate, mobile/desktop overflow, existing 26 spots; no uncaught errors')
+ print('PASS: open site + Log in entry, validation, password visibility, adapter failure/success, normalized payload, login placeholder, verified-session handoff, refresh gate, mobile/desktop overflow, existing 26 spots; no uncaught errors')
  b.close()

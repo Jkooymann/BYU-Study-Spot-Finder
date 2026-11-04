@@ -121,6 +121,11 @@ button { cursor: pointer; }
 .nav-link .ic { width: 18px; height: 18px; }
 .topbar-right { grid-area: home; display: flex; align-items: center; gap: 8px; }
 .home-menu-wrap { position: relative; }
+.login-btn { min-height: 40px; gap: 6px; border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.1); color: #fff; text-decoration: none; white-space: nowrap; }
+.login-btn:hover { background: rgba(255,255,255,.2); }
+.login-btn.is-current { background: #fff; color: #072a52; }
+.login-btn .ic { width: 16px; height: 16px; flex: none; }
+@media (max-width: 480px) { .login-btn { padding: 0 10px; } .login-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
 .student-pick {
   display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 4px 0 10px;
   border: 1px solid rgba(255,255,255,.22); border-radius: 12px; background: rgba(255,255,255,.1); color: #fff;

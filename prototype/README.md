@@ -52,9 +52,9 @@ Favorite spots are saved in the team's Supabase database, so everyone sees them.
 
 ## Account pages and teammate handoff
 
-Visitors enter at `#welcome`, with `#signup` and `#login` available. Existing app
-routes redirect to welcome until `AccountSession` has a verified session.
-The header keeps the same app name and pin icon without app navigation.
+Visitors land on `#start` and can use the whole site without signing in. The
+**Log in** button in the top bar (left of the Home button) opens `#welcome`, with
+`#signup` and `#login` available from there. Account pages use the normal header.
 
 `js/account.js` owns the forms and integration boundary. Signup validates a Net ID,
 a password of at least 8 characters, and a matching confirmation. Net IDs are

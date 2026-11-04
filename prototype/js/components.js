@@ -57,10 +57,6 @@ const HOME_MENU = [
 ];
 
 function renderTopBar(pageKey) {
-  if (pageKey === 'account') {
-    $('#topbar').innerHTML = `<div class="topbar-inner"><a class="brand" href="#welcome" aria-label="BYU Study Spot Finder, Welcome"><span class="brand-mark" aria-hidden="true">${icon('pin')}</span><span class="brand-name"><span class="brand-byu">BYU</span> Study Spot Finder</span></a></div>`;
-    return;
-  }
   const link = (route, label, ic) => {
     const cur = pageKey === route;
     return `<a href="#${route}" class="nav-link${cur ? ' is-current' : ''}"${cur ? ' aria-current="page"' : ''}>${icon(ic)}<span>${label}</span></a>`;
@@ -75,7 +71,7 @@ function renderTopBar(pageKey) {
         ${link('map', 'Map', 'map')}${link('list', 'List', 'list')}${link('favorites', 'Favorites', 'star')}
       </nav>
       <div class="topbar-right">
-      ${studentPicker()}
+      <a href="#welcome" class="btn btn-ghost btn-sm login-btn${pageKey === 'account' ? ' is-current' : ''}"${pageKey === 'account' ? ' aria-current="page"' : ''}>${icon('user')}<span>Log in</span></a>
       <div class="home-menu-wrap">
         <button id="home-btn" class="icon-btn home-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="home-menu" aria-label="Home menu">${icon('home')}</button>
         <div id="home-menu" class="home-menu" role="menu" aria-label="Home menu" hidden>
