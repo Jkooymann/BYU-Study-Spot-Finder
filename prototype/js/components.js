@@ -132,6 +132,13 @@ function starsSmall(n) {
   return `<span class="stars-small" aria-label="Your rating: ${plural(n, 'star')}">${[1, 2, 3, 4, 5].map((i) => `<span class="${i <= n ? 'is-on' : ''}">${icon('star')}</span>`).join('')}</span>`;
 }
 
+/** "My spot" or "Added by <name>" for spots students added; nothing for sample spots. */
+function spotBadge(s) {
+  if (!s.isUserSpot) return '';
+  const me = Store.currentStudent();
+  if (s.submittedBy == null || (me && me.user_id === s.submittedBy)) return '<span class="badge-mine">My spot</span>';
+  return `<span class="badge-mine">Added by ${esc(s.submittedByName || 'a teammate')}</span>`;
+}
 function spotCard(s, opts = {}) {
   const b = buildingById(s.building) || { short: s.building };
   const feats = FEATURES.filter((f) => s.features[f.key]);
@@ -140,7 +147,7 @@ function spotCard(s, opts = {}) {
     <div class="spot-card-main">
       <div class="spot-card-title">
         <h3>${esc(s.name)}</h3>
-        ${s.isUserSpot ? '<span class="badge-mine">My spot</span>' : ''}
+        ${spotBadge(s)}
       </div>
       <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}</p>
       <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}${starsSmall(Store.getRating(s.id))}</div>
@@ -400,7 +407,7 @@ const SpotDialog = {
         <div class="sd-title">
           <p class="eyebrow">${esc(b.name)}</p>
           <h2 id="sd-title">${esc(s.name)}</h2>
-          <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}${s.isUserSpot ? ' <span class="badge-mine">My spot</span>' : ''}</p>
+          <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}${s.isUserSpot ? ' ' + spotBadge(s) : ''}</p>
         </div>
         <div class="sd-actions">
           ${favButton(s.id, true)}
@@ -430,7 +437,7 @@ const SpotDialog = {
         <p class="fact-note">Ratings are saved on this device only.</p>
         <div class="sd-danger">
           ${this.confirming ? `
-            <p><strong>Delete this spot?</strong> ${s.isUserSpot ? 'Your spot will be removed from this device.' : 'This hides the sample spot on this device. You can restore sample spots from the list page.'}</p>
+            <p><strong>Delete this spot?</strong> ${s.isUserSpot ? (s.id.startsWith('d') ? 'This removes the spot for your whole team.' : 'Your spot will be removed from this device.') : 'This hides the sample spot on this device. You can restore sample spots from the list page.'}</p>
             <div class="sd-danger-row">
               <button type="button" class="btn btn-danger btn-sm" data-sd-delete-confirm>Delete spot</button>
               <button type="button" class="btn btn-ghost btn-sm" data-sd-delete-cancel>Cancel</button>

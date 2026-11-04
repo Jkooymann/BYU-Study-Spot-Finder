@@ -2,9 +2,9 @@
    Store — reads the mock data (data.js) and keeps the user's own data in
    localStorage: ratings, active filters, saved filters, filter history,
    user-added spots, and deleted sample spots.
-   Favorites of sample spots are shared through Supabase (db.js) for the
-   student picked in the top bar; favorites of spots you added yourself stay
-   on this device because those spots are not in the database yet.
+   Favorites and spots added on the Add a Spot page are shared through
+   Supabase (db.js) for the student picked in the top bar. If Supabase is
+   off or can't be reached, new spots and favorites stay on this device.
    Every read/write is wrapped in try/catch so the app still works when
    storage is blocked (it falls back to in-memory values).
    ========================================================================= */
@@ -33,18 +33,37 @@ const Store = (() => {
   function allSpots() {
     const hidden = new Set(deletedIds());
     return SPOTS.filter((s) => !hidden.has(s.id))
+      .concat(shared.spots.map((s) => ({ ...s, isUserSpot: true })))
       .concat(userSpots().map((s) => ({ ...s, isUserSpot: true })));
   }
   function getSpot(id) { return allSpots().find((s) => s.id === id) || null; }
 
-  function addUserSpot(spot) {
+  /**
+   * Save a spot from the Add a Spot page. Goes to Supabase when it is
+   * connected (rejects if saving fails), otherwise to this device.
+   */
+  async function addUserSpot(spot) {
+    const me = currentStudent();
+    if (shared.status === 'ok' && me) {
+      const saved = await DB.addSpot(me.user_id, spot);
+      shared.spots = shared.spots.concat(saved);
+      return { ...saved, isUserSpot: true };
+    }
     const id = 'u' + Date.now().toString(36);
     const saved = { ...spot, id };
     write('userSpots', userSpots().concat(saved));
-    return saved;
+    return { ...saved, isUserSpot: true };
   }
 
+  /** Delete a spot. Returns a promise that rejects (and undoes) if Supabase refused. */
   function deleteSpot(id) {
+    const fromDb = shared.spots.find((s) => s.id === id);
+    if (fromDb) {
+      const before = shared.spots;
+      shared.spots = before.filter((s) => s.id !== id);
+      const r = ratings(); delete r[id]; write('ratings', r);
+      return DB.deleteSpot(fromDb.dbId).catch((e) => { shared.spots = before; throw e; });
+    }
     if (userSpots().some((s) => s.id === id)) {
       write('userSpots', userSpots().filter((s) => s.id !== id));
     } else {
@@ -52,13 +71,18 @@ const Store = (() => {
     }
     write('favorites', localFavorites().filter((f) => f !== id));
     const r = ratings(); delete r[id]; write('ratings', r);
+    return Promise.resolve();
   }
   function restoreSampleSpots() { write('deletedSampleIds', []); }
 
   /* ---------------- Shared favorites (Supabase) ---------------- */
   // status: 'off' (no Supabase key), 'loading', 'ok', or 'error'
-  const shared = { status: DB.ready ? 'loading' : 'off', students: [], favDbIds: [] };
-  const spotIdByDbId = (dbId) => { const s = SPOTS.find((x) => x.dbId === dbId); return s ? s.id : null; };
+  // spots: student-added spots from the database (not in data.js)
+  const shared = { status: DB.ready ? 'loading' : 'off', students: [], favDbIds: [], spots: [] };
+  const spotIdByDbId = (dbId) => {
+    const s = SPOTS.find((x) => x.dbId === dbId) || shared.spots.find((x) => x.dbId === dbId);
+    return s ? s.id : null;
+  };
   const isShared = (spot) => shared.status === 'ok' && spot && spot.dbId != null;
 
   function sharedStatus() { return shared.status; }
@@ -69,11 +93,15 @@ const Store = (() => {
   }
   function setStudent(userId) { setPref('studentId', userId); }
 
-  /** Load the student list and the current student's favorites from Supabase. */
+  /** Load students, student-added spots, and the current student's favorites from Supabase. */
   async function loadShared() {
     if (!DB.ready) return;
     try {
-      shared.students = await DB.students();
+      const inDataJs = new Set(SPOTS.map((s) => s.dbId));
+      // If spots can't load (e.g. the spots migration isn't in the database yet), keep favorites working.
+      const spots = DB.studentSpots().catch((e) => { console.error('Could not load added spots from Supabase', e); return []; });
+      [shared.students, shared.spots] = await Promise.all([DB.students(), spots]);
+      shared.spots = shared.spots.filter((s) => !inDataJs.has(s.dbId) && s.building);
       const me = currentStudent();
       shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
       shared.status = 'ok';
