@@ -2,7 +2,7 @@
    App — hash router + all delegated event handling.
    Routes:  #start  #map  #map-spot-<id>  #building-<id>[-f<floor>]
             #spot-<id> (Spot Details over the page you came from)
-            #list  #favorites  #add
+            #list  #favorites  #add  #add-<building id> (Add a Spot with the building picked)
    ========================================================================= */
 
 const App = {
@@ -33,6 +33,12 @@ const App = {
     if (/(^|&)(access_token|error)=/.test(h)) { h = 'start'; history.replaceState(null, '', '#start'); }
     // Already logged in: skip the Welcome / Log in / Create account pages.
     if (AccountPages.isPublic(h) && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
+    // #add-<building>: open Add a Spot with that building already chosen.
+    if (h.startsWith('add-')) {
+      const b = buildingById(h.slice(4));
+      if (b && AddState.building !== b.id) { AddState.building = b.id; AddState.floor = b.floors[0]; AddState.pin = null; }
+      h = 'add'; history.replaceState(null, '', '#add');
+    }
     setHomeMenu(false);
     setAccountMenu(false);
     FilterPanel.close();
@@ -77,6 +83,15 @@ const App = {
     window.scrollTo(0, keepScroll ? y : 0);
     const flash = $('.spot-card.is-flash');
     if (flash) flash.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // Phones: the map is wider than the screen, so center it on the selected building (or the library).
+    const wrap = $('.map-wrap');
+    if (wrap && wrap.scrollWidth > wrap.clientWidth) {
+      const focus = $('.bldg.is-target .bldg-shape') || $('[data-building="hbll"] .bldg-shape');
+      const scale = wrap.scrollWidth / CAMPUS.w;
+      if (focus) wrap.scrollLeft = (Number(focus.getAttribute('x')) + Number(focus.getAttribute('width')) / 2) * scale - wrap.clientWidth / 2;
+    }
+    // Selected spot on the map: bring its card and the highlighted building into view.
+    if (!keepScroll && h.startsWith('map-spot-') && $('#map-selected')) $('#map-selected').scrollIntoView({ block: 'start', behavior: 'smooth' });
   },
 
   /** Load shared favorites from Supabase, then redraw. */
@@ -106,6 +121,15 @@ const App = {
     if (SpotDialog.id) SpotDialog.render();
   },
 
+  /** Open a random spot (from `list`, or every spot), e.g. when nothing matches. */
+  randomSpot(list) {
+    const choice = Store.randomSpot(list);
+    if (!choice) return;
+    FilterPanel.close();
+    this.go('spot-' + choice.id);
+    toast(`Random pick: ${choice.name}`);
+  },
+
   closeSpot() {
     if (this.navCount > 0) history.back();
     else this.go(this.base);
@@ -119,6 +143,9 @@ document.addEventListener('click', (e) => {
   // Account menu (your name in the top bar)
   if (t.closest('#account-btn')) { setAccountMenu(!accountMenuOpen()); return; }
   if (t.closest('[data-sign-out]')) { setAccountMenu(false); AccountSession.signOut(); return; }
+
+  // "Pick a random spot" (no-results message, Filter Panel)
+  if (t.closest('[data-random-spot]')) { App.randomSpot(); return; }
   if (accountMenuOpen() && !t.closest('#account-menu')) setAccountMenu(false);
 
   // Home Menu
@@ -153,6 +180,7 @@ document.addEventListener('click', (e) => {
     if (t.closest('[data-sd-delete-cancel]')) { SpotDialog.confirming = false; SpotDialog.render(); return; }
     if (t.closest('[data-sd-delete-confirm]')) {
       const s = Store.getSpot(SpotDialog.id);
+      if (!Store.isOwnSpot(s)) return;
       Store.deleteSpot(SpotDialog.id).catch((err) => {
         console.error('Could not delete spot', err);
         App.refresh();
@@ -210,28 +238,23 @@ document.addEventListener('click', (e) => {
   const chip = t.closest('[data-start-chip]');
   if (chip) {
     const k = chip.dataset.startChip, sel = StartState.selected;
-    sel.has(k) ? sel.delete(k) : sel.add(k);
+    if (sel.has(k)) sel.delete(k);
+    else {
+      sel.add(k);
+      // Indoors and Outdoors are one choice: picking one un-picks the other.
+      if (k === 'indoors') sel.delete('outdoors');
+      if (k === 'outdoors') sel.delete('indoors');
+    }
     App.refresh();
     $(`[data-start-chip="${k}"]`).focus();
     return;
   }
   if (t.closest('#go-btn')) {
-    const f = Store.emptyFilters();
-    StartState.selected.forEach((k) => { if (k === 'indoors') f.indoors = true; else f.features[k] = true; });
-    Store.setFilters(f);
+    Store.setFilters(startFilters());
     App.go('list');
     return;
   }
-  if (t.closest('#random-btn')) {
-    const all = Store.allSpots();
-    const pick = all[Math.floor(Math.random() * all.length)];
-    App.go('list');
-    setTimeout(() => App.go('spot-' + pick.id), 60);
-    return;
-  }
-
-  // List
-  if (t.closest('[data-restore-spots]')) { Store.restoreSampleSpots(); App.refresh(); toast('Hidden spots restored'); return; }
+  if (t.closest('#random-btn')) { App.randomSpot(Store.filtered(startFilters())); return; }
 
   // Favorites page
   const unfav = t.closest('[data-unfav]');
@@ -241,6 +264,8 @@ document.addEventListener('click', (e) => {
   if (fl) { AddState.floor = Number(fl.dataset.addFloor); AddState.pin = null; App.refresh(); $(`[data-add-floor="${fl.dataset.addFloor}"]`).focus(); return; }
   const ag = t.closest('[data-add-group]');
   if (ag) { AddState.groupSize = ag.dataset.addGroup; App.refresh(); $(`[data-add-group="${ag.dataset.addGroup}"]`).focus(); return; }
+  const st = t.closest('[data-add-setting]');
+  if (st) { AddState.setting = st.dataset.addSetting; App.refresh(); $(`[data-add-setting="${st.dataset.addSetting}"]`).focus(); return; }
   const tag = t.closest('[data-add-tag]');
   if (tag) { const k = tag.dataset.addTag; AddState.tags[k] = !AddState.tags[k]; App.refresh(); $(`[data-add-tag="${k}"]`).focus(); return; }
   if (t.closest('[data-add-cancel]')) { AddState.reset(); App.go('list'); return; }
@@ -302,7 +327,8 @@ document.addEventListener('submit', async (e) => {
   }
   if (Store.needsLogin()) { toast('Log in to add a spot for your team.', { href: '#login', label: 'Log in' }); return; }
   const features = {};
-  FEATURES.forEach((f) => { features[f.key] = !!s.tags[f.key]; });
+  FILTER_FEATURES.forEach((f) => { features[f.key] = !!s.tags[f.key]; });
+  features.outdoors = s.setting === 'outdoors';
   const submitBtn = e.target.querySelector('[type="submit"]');
   s.saving = true;
   submitBtn.disabled = true;
@@ -335,7 +361,7 @@ document.addEventListener('keydown', (e) => {
     if (accountMenuOpen()) { setAccountMenu(false); $('#account-btn').focus(); return; }
     if (!$('#filter-panel').hidden) { FilterPanel.close(); return; }
     if (SpotDialog.id) { App.closeSpot(); return; }
-    if ($('.map-popup')) { App.go('map'); return; }
+    if ($('#map-selected')) { App.go('map'); return; }
   }
   // Enter / Space on cards, map buildings and markers
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-open-spot]:not(button), [data-building]')) {
@@ -345,9 +371,40 @@ document.addEventListener('keydown', (e) => {
   // Arrow keys inside the Home Menu
   if (homeMenuOpen() && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
     e.preventDefault();
-    const items = $$('.home-item'); const i = items.indexOf(document.activeElement);
+    const items = $$('#home-menu .menu-item'); const i = items.indexOf(document.activeElement);
     items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
   }
 });
+
+/* ---------------- Mobile: swipe a sheet down to close it ---------------- */
+(() => {
+  let drag = null;
+  document.addEventListener('touchstart', (e) => {
+    const sheet = e.target.closest('.sheet');
+    if (!sheet || window.innerWidth >= 760) return;
+    // Only from the grip / header, or from the body when it is already scrolled to the top.
+    const body = $('.sheet-body', sheet);
+    const fromHead = !!e.target.closest('.sheet-grip, .sheet-head');
+    if (!fromHead && !(e.target.closest('.sheet-body') && body.scrollTop <= 0)) return;
+    drag = { sheet, y0: e.touches[0].clientY, dy: 0, fromHead };
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!drag) return;
+    drag.dy = Math.max(0, e.touches[0].clientY - drag.y0);
+    if (!drag.fromHead && drag.dy < 12) return;
+    drag.sheet.style.transition = 'none';
+    drag.sheet.style.transform = `translateY(${drag.dy}px)`;
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (!drag) return;
+    const { sheet, dy } = drag;
+    drag = null;
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    if (dy < 90) return;
+    if (sheet.id === 'filter-panel') FilterPanel.close();
+    else if (SpotDialog.id) App.closeSpot();
+  });
+})();
 
 App.init();

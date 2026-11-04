@@ -1,50 +1,72 @@
 /* =========================================================================
    Pages. Each returns HTML for <main id="app">. Clicks are handled by the
-   delegated listeners in app.js.
+   delegated listeners in app.js. Every page starts with pageHeader() so the
+   header looks the same everywhere.
    ========================================================================= */
 
 const Pages = {};
 
 /* ---------------- Page 1: Get Started ---------------- */
-const START_CHIPS = [
-  { key: 'foodAllowed', label: 'Food allowed', icon: 'foodAllowed' },
-  { key: 'talkingAllowed', label: 'Group work / Talking allowed', icon: 'talkingAllowed' },
-  { key: 'quietZone', label: 'Quiet zone', icon: 'quietZone' },
-  { key: 'outlets', label: 'Outlets', icon: 'outlets' },
-  { key: 'tables', label: 'Tables', icon: 'tables' },
-  { key: 'comfySeating', label: 'Comfy seating', icon: 'comfySeating' },
-  { key: 'outdoors', label: 'Outdoors', icon: 'outdoors' },
-  { key: 'indoors', label: 'Indoors', icon: 'indoors' },
-];
+// Same options as the Filter Panel: every feature, plus Indoors / Outdoors (pick one).
+const START_CHIPS = FILTER_FEATURES.map((f) => ({ key: f.key, label: f.label, icon: f.key }))
+  .concat(SETTINGS.filter((x) => x.key).map((x) => ({ key: x.key, label: x.label, icon: x.icon })));
 const StartState = { selected: new Set() };
+
+/** The filters the Get Started picks add up to. */
+function startFilters() {
+  const f = Store.emptyFilters();
+  StartState.selected.forEach((k) => {
+    if (k === 'indoors' || k === 'outdoors') f.setting = k;
+    else f.features[k] = true;
+  });
+  return f;
+}
 
 Pages.start = () => {
   const spots = Store.allSpots();
-  const buildings = new Set(spots.map((s) => s.building)).size;
   const sel = StartState.selected;
+  const matches = Store.filtered(startFilters()).length;
+  const showLabel = sel.size ? `Show ${plural(matches, 'matching spot')}` : `Browse all ${plural(spots.length, 'spot')}`;
   return `<section class="page start">
-    <div class="start-intro">
-      <p class="eyebrow">${plural(spots.length, 'study spot')} · ${plural(buildings, 'building')} · not just the library</p>
-      <h1 class="display">What do you want in your study spot?</h1>
-      <p class="sub">Select all that apply.</p>
-    </div>
+    ${pageHeader({
+      eyebrow: `${plural(spots.length, 'study spot')} · ${plural(BUILDINGS.length, 'building')} · not just the library`,
+      title: 'What do you want in your study spot?',
+      sub: 'Pick everything that matters to you. We’ll show the spots that have it all.',
+      display: true,
+    })}
     <div class="start-chips" role="group" aria-label="What you want in a study spot">
       ${START_CHIPS.map((c) => `<button type="button" class="chip chip-toggle chip-lg${sel.has(c.key) ? ' is-on' : ''}" aria-pressed="${sel.has(c.key)}" data-start-chip="${c.key}">
         ${icon(c.icon)}<span>${c.label}</span><span class="chip-check">${icon('check')}</span></button>`).join('')}
     </div>
+    ${sel.size && !matches ? noResults({ noPanel: true, title: 'No spots have all of these yet' }) : `
     <div class="start-actions">
-      <button type="button" class="btn btn-primary btn-lg" id="go-btn" ${sel.size ? '' : 'disabled'}>Go${sel.size ? ` · ${plural(sel.size, 'filter')}` : ''}</button>
-      <button type="button" class="btn btn-secondary btn-lg" id="random-btn">${icon('shuffle')}Find a new study spot!</button>
-    </div>
-    <p class="start-hint" id="go-hint">${sel.size ? 'Go shows only the spots that match everything you picked.' : 'Pick at least one option to continue.'}</p>
+      <div class="start-action">
+        <button type="button" class="btn btn-primary btn-lg btn-block" id="go-btn">${icon('search')}${showLabel}</button>
+        <p class="start-hint">${sel.size ? `Shows spots that have all ${plural(sel.size, 'thing')} you picked.` : 'Or pick what you need above first.'}</p>
+      </div>
+      <span class="start-or" aria-hidden="true">or</span>
+      <div class="start-action">
+        <button type="button" class="btn btn-secondary btn-lg btn-block" id="random-btn">${icon('shuffle')}Pick a random spot</button>
+        <p class="start-hint">${sel.size ? 'We’ll choose one that matches your picks.' : 'Can’t decide? We’ll choose one for you.'}</p>
+      </div>
+    </div>`}
     <div class="start-links">
       <a href="#map" class="start-link">${icon('map')}<span><strong>Browse the campus map</strong><small>See spots building by building, floor by floor</small></span></a>
-      <a href="#add" class="start-link">${icon('plus')}<span><strong>Know a hidden spot?</strong><small>Add it to your own list</small></span></a>
+      <a href="#add" class="start-link">${icon('plus')}<span><strong>Know a hidden spot?</strong><small>Add it so other students can find it</small></span></a>
     </div>
   </section>`;
 };
 
 /* ---------------- Page 2: Campus Map ---------------- */
+// Buildings are placed from their real coordinates (lat/lng in data.js).
+const CAMPUS = { w: 800, h: 624, lng0: -111.6540, lng1: -111.6443, lat0: 40.2452, lat1: 40.2510 };
+function mapBox(b) {
+  const [w, h] = b.size, [nx, ny] = b.nudge || [0, 0];
+  const cx = ((b.lng - CAMPUS.lng0) / (CAMPUS.lng1 - CAMPUS.lng0)) * CAMPUS.w + nx;
+  const cy = ((CAMPUS.lat1 - b.lat) / (CAMPUS.lat1 - CAMPUS.lat0)) * CAMPUS.h + ny;
+  return { x: cx - w / 2, y: cy - h / 2, w, h, cx, cy };
+}
+
 Pages.map = (spotId) => {
   const f = Store.getFilters();
   const active = Store.isActive(f);
@@ -57,68 +79,73 @@ Pages.map = (spotId) => {
       match: all.filter((s) => s.building === b.id && Store.matches(s, f)).length,
     };
   });
-  const buildingSvg = BUILDINGS.map((b) => {
-    const m = b.map, c = counts[b.id];
-    const cx = m.x + m.w / 2, cy = m.y + m.h / 2;
+  const anyMatch = BUILDINGS.some((b) => counts[b.id].match);
+  // Draw the selected building last so its outline sits on top.
+  const order = BUILDINGS.slice().sort((a, b) => (target && a.id === target.building) - (target && b.id === target.building));
+  const buildingSvg = order.map((b) => {
+    const m = mapBox(b), c = counts[b.id];
     const state = [
+      !c.total ? 'is-empty' : '',
       active && c.match ? 'is-match' : '', active && !c.match ? 'is-dim' : '',
       target && target.building === b.id ? 'is-target' : '',
     ].join(' ');
-    const badgeText = plural(active ? c.match : c.total, 'spot');
-    const showBadge = active ? c.match > 0 : false;
-    const bw = 84;
+    const n = active ? c.match : c.total;
+    const fs = m.w < 60 ? 13 : m.w < 80 ? 15 : 18;
     return `<g class="bldg ${state}" data-building="${b.id}" tabindex="0" role="button"
         aria-label="${esc(b.name)}: ${active ? `${c.match} of ${c.total} spots match` : plural(c.total, 'study spot')}. Open floor view.">
-      <rect class="bldg-shadow" x="${m.x + 5}" y="${m.y + 7}" width="${m.w}" height="${m.h}" rx="14"/>
-      <rect class="bldg-shape" x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="14"/>
-      <text class="bldg-short" x="${cx}" y="${cy + 4}" text-anchor="middle">${b.short}</text>
-      <text class="bldg-name" x="${cx}" y="${cy + 28}" text-anchor="middle">${esc(b.name)}</text>
-      ${showBadge ? `<g class="bldg-badge"><rect x="${m.x + m.w - bw + 12}" y="${m.y - 14}" width="${bw}" height="28" rx="14"/><text x="${m.x + m.w - bw / 2 + 12}" y="${m.y + 5}" text-anchor="middle">${badgeText}</text></g>` : ''}
+      <title>${esc(b.name)}</title>
+      <rect class="bldg-shadow" x="${m.x + 3}" y="${m.y + 4}" width="${m.w}" height="${m.h}" rx="8"/>
+      <rect class="bldg-shape" x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="8"/>
+      <text class="bldg-short" x="${m.cx}" y="${m.cy + fs * 0.35}" text-anchor="middle" style="font-size:${fs}px">${b.short}</text>
+      ${n > 0 ? `<g class="bldg-badge"><circle cx="${m.x + m.w - 2}" cy="${m.y + 2}" r="11"/><text x="${m.x + m.w - 2}" y="${m.y + 6.5}" text-anchor="middle">${n}</text></g>` : ''}
+      ${target && target.building === b.id ? `<g class="map-pin" transform="translate(${m.cx} ${m.y - 4})"><path d="M0 0c-7-8-11-13-11-18a11 11 0 0 1 22 0c0 5-4 10-11 18z"/><circle cy="-18" r="4"/></g>` : ''}
     </g>`;
   }).join('');
 
-  let popup = '';
+  let selected = '';
   if (target) {
-    const b = buildingById(target.building), m = b.map;
-    const left = Math.min(80, Math.max(20, ((m.x + m.w / 2) / 800) * 100));
-    const top = Math.max(4, (m.y / 460) * 100);
-    popup = `<div class="map-popup" style="left:${left}%;top:${top}%" role="dialog" aria-label="Selected spot">
-      <button type="button" class="icon-btn icon-btn-sm map-popup-close" data-close-popup aria-label="Close">${icon('x')}</button>
-      <p class="eyebrow">${b.short} · Floor ${target.floor}</p>
-      <strong>${esc(target.name)}</strong>
-      <button type="button" class="btn btn-primary btn-sm" data-open-spot="${target.id}">View details</button>
+    const b = buildingById(target.building);
+    selected = `<div class="map-selected" id="map-selected" aria-live="polite">
+      <div class="map-selected-head">
+        <p class="eyebrow eyebrow-gold">${icon('pin')}Selected spot · ${esc(b.name)}</p>
+        <button type="button" class="link-btn" data-close-popup>Clear</button>
+      </div>
+      ${spotCard(target)}
+      <div class="map-selected-actions">
+        <button type="button" class="btn btn-primary btn-sm" data-open-spot="${target.id}">View details</button>
+        <a class="btn btn-secondary btn-sm" href="#building-${target.building}-f${target.floor}">${icon('layers')}Floor ${target.floor} plan</a>
+      </div>
     </div>`;
   }
 
   return `<section class="page">
-    <div class="page-head">
-      <div><h1>Campus map</h1>
-      <p class="sub">${active ? 'Highlighted buildings have spots that match your filters.' : 'Tap a building to see its floors and study spots.'}</p></div>
-    </div>
+    ${pageHeader({
+      eyebrow: `${plural(BUILDINGS.length, 'building')} · ${plural(all.length, 'spot')}`,
+      title: 'Campus map',
+      sub: active ? 'Gold buildings have spots that match your filters. Tap one to see its floors.' : 'Tap a building to see its floors and study spots. Numbers show how many spots each has.',
+    })}
     ${toolbar()}
+    ${active && !anyMatch ? noResults() : ''}
+    ${selected}
     <div class="map-wrap">
-      <svg class="campus-map" viewBox="0 0 800 460" role="group" aria-label="Map of BYU campus buildings with study spots">
-        <rect class="map-ground" x="0" y="0" width="800" height="460" rx="18"/>
-        <path class="map-grass" d="M250 175h300v20H250zM20 180h240v15H20zM520 175h260v20H520z"/>
-        <rect class="map-grass" x="255" y="15" width="40" height="150" rx="10"/>
-        <rect class="map-grass" x="500" y="15" width="45" height="150" rx="10"/>
-        <path class="map-walk" d="M20 185H780M270 20V440M540 20V440M20 400H780"/>
-        <rect class="map-plaza" x="508" y="225" width="62" height="140" rx="10"/>
-        <text class="map-label" transform="translate(544 295) rotate(-90)" text-anchor="middle">Brigham Square</text>
-        <text class="map-label" x="400" y="428" text-anchor="middle">Campus Drive</text>
-        <g class="map-compass" transform="translate(760 420)"><circle r="16"/><path d="M0 -10 5 5 0 2-5 5z"/><text y="-20" text-anchor="middle">N</text></g>
+      <svg class="campus-map" viewBox="0 0 ${CAMPUS.w} ${CAMPUS.h}" role="group" aria-label="Map of BYU campus buildings with study spots">
+        <rect class="map-ground" x="0" y="0" width="${CAMPUS.w}" height="${CAMPUS.h}" rx="18"/>
+        <g class="map-compass" transform="translate(${CAMPUS.w - 34} ${CAMPUS.h - 34})"><circle r="16"/><path d="M0 -10 5 5 0 2-5 5z"/><text y="-21" text-anchor="middle">N</text></g>
         ${buildingSvg}
       </svg>
-      ${popup}
     </div>
-    <p class="map-legend">${active ? '<span class="legend-dot legend-match"></span>Has matching spots <span class="legend-dot legend-dim"></span>No matches' : 'Simplified map. Buildings are not to scale.'}</p>
-    <h2 class="section-h">Buildings</h2>
+    <p class="map-legend">${active
+      ? '<span class="legend-dot legend-match"></span>Has matching spots <span class="legend-dot legend-dim"></span>No matches'
+      : '<span class="legend-dot legend-has"></span>Has study spots <span class="legend-dot legend-dim"></span>No spots yet'}
+      <span class="legend-note">Buildings are placed where they are on campus. Shapes are simplified.<span class="map-pan-hint"> Swipe the map to see more.</span></span></p>
+    <h2 class="section-h">All buildings</h2>
     <div class="building-grid">
       ${BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => {
         const c = counts[b.id];
-        return `<a class="building-card${active && !c.match ? ' is-dim' : ''}${target && target.building === b.id ? ' is-target' : ''}" href="#building-${b.id}">
+        const text = !c.total ? 'No spots yet · add one' : active ? `${c.match} of ${plural(c.total, 'spot')} match` : plural(c.total, 'study spot');
+        return `<a class="building-card${active && !c.match ? ' is-dim' : ''}${!c.total ? ' is-empty' : ''}${target && target.building === b.id ? ' is-target' : ''}" href="#building-${b.id}">
           <span class="building-short">${b.short}</span>
-          <span class="building-card-text"><strong>${esc(b.name)}</strong><small>${active ? `${c.match} of ${plural(c.total, 'spot')} match` : plural(c.total, 'study spot')}</small></span>
+          <span class="building-card-text"><strong>${esc(b.name)}</strong><small>${text}</small></span>
         </a>`;
       }).join('')}
     </div>
@@ -134,8 +161,9 @@ Pages.building = (buildingId, floorArg) => {
   const spots = Store.allSpots().filter((s) => s.building === b.id);
   const floors = Array.from(new Set(spots.map((s) => s.floor))).sort((a, b) => a - b);
   if (!floors.length) {
-    return `<section class="page"><a href="#map" class="back-link">${icon('back')}Back to map</a><h1>${esc(b.name)}</h1>
-      <div class="empty"><p>There are no study spots in this building yet.</p><a class="btn btn-primary" href="#add">${icon('plus')}Add a spot</a></div></section>`;
+    return `<section class="page">
+      ${pageHeader({ back: `<a href="#map" class="back-link">${icon('back')}Back to map</a>`, eyebrow: b.short, title: esc(b.name), sub: 'No study spots here yet.' })}
+      <div class="empty"><span class="empty-ic">${icon('plus')}</span><p class="empty-title">Know a good spot in the ${esc(b.short)}?</p><p>Add it so other students can find it.</p><div class="empty-actions"><a class="btn btn-primary" href="#add-${b.id}">${icon('plus')}Add a spot here</a></div></div></section>`;
   }
   let floor = Number(floorArg);
   if (!floors.includes(floor)) {
@@ -145,13 +173,11 @@ Pages.building = (buildingId, floorArg) => {
   const onFloor = spots.filter((s) => s.floor === floor).sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
   const items = onFloor.map((s, i) => ({ spot: s, num: i + 1, match: !active || Store.matches(s, f) }));
   const matchCount = items.filter((i) => i.match).length;
+  const anyMatch = !active || spots.some((s) => Store.matches(s, f));
   return `<section class="page">
-    <a href="#map" class="back-link">${icon('back')}Back to map</a>
-    <div class="page-head">
-      <div><p class="eyebrow">${b.short}</p><h1>${esc(b.name)}</h1>
-      <p class="sub">${plural(spots.length, 'study spot')} on ${plural(floors.length, 'floor')}</p></div>
-    </div>
+    ${pageHeader({ back: `<a href="#map" class="back-link">${icon('back')}Back to map</a>`, eyebrow: b.short, title: esc(b.name), sub: `${plural(spots.length, 'study spot')} on ${plural(floors.length, 'floor')}` })}
     ${toolbar()}
+    ${anyMatch ? '' : noResults({ title: `No spots in the ${esc(b.short)} match your filters` })}
     <div class="floor-tabs" role="tablist" aria-label="Floors">
       ${floors.map((fl) => {
         const m = spots.filter((s) => s.floor === fl && (!active || Store.matches(s, f))).length;
@@ -171,51 +197,46 @@ Pages.building = (buildingId, floorArg) => {
 };
 
 /* ---------------- Page 7: Study Spot List ---------------- */
+// A–Z was dropped: spot names aren't something people search by, and the
+// Building grouping already keeps the list easy to scan.
 const SORTS = [
   { key: 'building', label: 'Building' },
-  { key: 'busy', label: 'Least busy' },
-  { key: 'az', label: 'A–Z' },
+  { key: 'busy', label: 'Least busy first' },
 ];
 Pages.list = () => {
   const all = Store.allSpots();
   const spots = Store.filtered();
-  const sort = Store.pref('sort', 'building');
+  const sort = SORTS.some((x) => x.key === Store.pref('sort')) ? Store.pref('sort') : 'building';
   const flash = App.flashId;
   App.flashId = null;
   let body;
   if (!spots.length) {
-    body = `<div class="empty">
-      <p class="empty-title">No spots match your filters</p>
-      <p>Try removing a filter or two.</p>
-      <button type="button" class="btn btn-primary" data-clear-filters>Clear filters</button></div>`;
+    body = noResults();
   } else if (sort === 'building') {
     const groups = BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name))
       .map((b) => ({ b, list: spots.filter((s) => s.building === b.id).sort((x, y) => x.floor - y.floor || x.name.localeCompare(y.name)) }))
       .filter((g) => g.list.length);
     body = groups.map((g) => `<section class="list-group">
-      <h2 class="group-h"><a href="#building-${g.b.id}">${esc(g.b.name)}</a><span>${g.b.short} · ${plural(g.list.length, 'spot')}</span></h2>
+      <h2 class="group-h"><span class="group-h-code">${g.b.short}</span><a href="#building-${g.b.id}">${esc(g.b.name)}</a><span class="group-h-count">${plural(g.list.length, 'spot')}</span></h2>
       <div class="spot-list">${g.list.map((s) => spotCard(s, { flash: s.id === flash })).join('')}</div></section>`).join('');
   } else {
-    const sorted = spots.slice().sort(sort === 'busy'
-      ? (a, b) => BUSYNESS.indexOf(a.busyness) - BUSYNESS.indexOf(b.busyness) || a.name.localeCompare(b.name)
-      : (a, b) => a.name.localeCompare(b.name));
+    const sorted = spots.slice().sort((a, b) => BUSYNESS.indexOf(a.busyness) - BUSYNESS.indexOf(b.busyness) || a.name.localeCompare(b.name));
     body = `<div class="spot-list">${sorted.map((s) => spotCard(s, { flash: s.id === flash })).join('')}</div>`;
   }
-  const hidden = Store.deletedIds().length;
   return `<section class="page">
-    <div class="page-head">
-      <div><h1>Study spots</h1>
-      <p class="sub" aria-live="polite">${spots.length === all.length ? `All ${plural(all.length, 'spot')}` : `${spots.length} of ${plural(all.length, 'spot')} match`}</p></div>
-      <div class="sort">
+    ${pageHeader({ eyebrow: `${plural(BUILDINGS.length, 'building')} · ${plural(all.length, 'spot')}`, title: 'Study spots', sub: 'Every spot on campus. Narrow it down by group size or filters.' })}
+    ${toolbar()}
+    <div class="results-bar">
+      <p class="results-count" aria-live="polite">${spots.length === all.length ? `Showing all <strong>${plural(all.length, 'spot')}</strong>` : `<strong>${spots.length}</strong> of ${plural(all.length, 'spot')} match`}</p>
+      ${spots.length ? `<div class="sort">
         <label for="sort-select">${icon('sort')}Sort by</label>
         <select id="sort-select" class="select select-sm">${SORTS.map((s) => `<option value="${s.key}" ${sort === s.key ? 'selected' : ''}>${s.label}</option>`).join('')}</select>
-      </div>
+      </div>` : ''}
     </div>
-    ${toolbar()}
     ${body}
     <div class="list-foot">
+      <p>Know a spot that isn’t here?</p>
       <a class="btn btn-secondary" href="#add">${icon('plus')}Add a spot</a>
-      ${hidden ? `<button type="button" class="link-btn" data-restore-spots>Restore ${plural(hidden, 'hidden spot')}</button>` : ''}
     </div>
   </section>`;
 };
@@ -239,20 +260,26 @@ Pages.favorites = () => {
             <button type="button" class="btn btn-ghost btn-sm" data-unfav="${s.id}">Remove</button>
           </div></li>`;
       }).join('')}</ul>`
-    : `<div class="empty"><p class="empty-title">No favorites yet</p><p>Tap the ★ on any spot to save it here.</p><a class="btn btn-primary" href="#list">Browse study spots</a></div>`;
+    : `<div class="empty"><span class="empty-ic">${icon('star')}</span><p class="empty-title">No favorites yet</p><p>Tap the ☆ on any spot to save it here.</p><div class="empty-actions"><a class="btn btn-primary" href="#list">Browse study spots</a></div></div>`;
 
   return `<section class="page">
-    <div class="page-head"><div><h1>Favorites</h1><p class="sub">${favoritesNote()}</p></div></div>
+    ${pageHeader({ eyebrow: favs.length ? plural(favs.length, 'saved spot') : 'Your list', title: 'Favorites', sub: 'Your go-to study spots, all in one place.' })}
+    ${notice(favoritesNote())}
     ${spotsPanel}
   </section>`;
 };
 
+/** Small status box under the page header (account / database state). */
+function notice(html) {
+  return html ? `<p class="notice">${icon('user')}<span>${html}</span></p>` : '';
+}
+
 function favoritesNote() {
   const status = Store.sharedStatus();
   const me = Store.currentStudent();
-  if (status === 'ok' && me) return `Favorite spots saved to <strong>${esc(me.display_name)}</strong>’s account.`;
+  if (status === 'ok' && me) return `Saved to <strong>${esc(me.display_name)}</strong>’s account.`;
   if (status === 'ok') return '<a href="#login">Log in</a> to save favorite spots to your account.';
-  if (status === 'loading') return 'Loading shared favorites…';
+  if (status === 'loading') return 'Loading your favorites…';
   if (status === 'error') return 'Could not reach the database, so favorites are saved on this device for now.';
   return 'Saved on this device.';
 }
@@ -260,15 +287,15 @@ function favoritesNote() {
 /* ---------------- Page 10: Add a Spot ---------------- */
 function addSpotNote() {
   const me = Store.currentStudent();
-  if (Store.sharedStatus() === 'ok' && me) return `Your spot is saved as <strong>${esc(me.display_name)}</strong> and shared with your team.`;
-  if (Store.needsLogin()) return '<a href="#login">Log in</a> to add a spot. It will be shared with your team.';
+  if (Store.sharedStatus() === 'ok' && me) return `Adding as <strong>${esc(me.display_name)}</strong>. Your spot will be visible to everyone.`;
+  if (Store.needsLogin()) return '<a href="#login">Log in</a> to add a spot. It will be visible to everyone.';
   if (Store.sharedStatus() === 'loading') return 'Connecting to the database…';
   if (Store.sharedStatus() === 'error') return 'Could not reach the database, so your spot is saved only on this device.';
   return 'Your spot is saved only on this device.';
 }
 const AddState = {
   reset() {
-    Object.assign(this, { name: '', building: '', floor: null, pin: null, groupSize: 'solo', tags: {}, description: '', errors: {}, submitted: false, saving: false });
+    Object.assign(this, { name: '', building: '', floor: null, pin: null, groupSize: 'solo', setting: 'indoors', tags: {}, description: '', errors: {}, submitted: false, saving: false });
   },
 };
 AddState.reset();
@@ -278,7 +305,8 @@ Pages.add = () => {
   const b = buildingById(s.building);
   const existing = b && s.floor ? Store.allSpots().filter((x) => x.building === b.id && x.floor === s.floor) : [];
   return `<section class="page page-narrow">
-    <div class="page-head"><div><h1>Add a spot</h1><p class="sub">${addSpotNote()}</p></div></div>
+    ${pageHeader({ eyebrow: 'Share a spot', title: 'Add a spot', sub: 'Know a great place to study? Add it so other students can find it.' })}
+    ${notice(addSpotNote())}
     <form id="add-form" class="form" novalidate>
       <div class="field">
         <label for="add-name" class="label">Spot name <span class="req">Required</span></label>
@@ -315,9 +343,14 @@ Pages.add = () => {
       </div>
 
       <div class="field">
-        <span class="label">Tags</span>
-        <div class="chip-wrap" role="group" aria-label="Tags">
-          ${FEATURES.map((f) => `<button type="button" class="chip chip-toggle${s.tags[f.key] ? ' is-on' : ''}" aria-pressed="${!!s.tags[f.key]}" data-add-tag="${f.key}">${icon(f.key)}${f.label}</button>`).join('')}
+        <span class="label">Indoors or outdoors</span>
+        ${settingPicker(s.setting, 'data-add-setting', false)}
+      </div>
+
+      <div class="field">
+        <span class="label">Features <span class="opt">Pick all that apply</span></span>
+        <div class="chip-wrap" role="group" aria-label="Features">
+          ${FILTER_FEATURES.map((f) => `<button type="button" class="chip chip-toggle${s.tags[f.key] ? ' is-on' : ''}" aria-pressed="${!!s.tags[f.key]}" data-add-tag="${f.key}">${icon(f.key)}${f.label}</button>`).join('')}
         </div>
       </div>
 

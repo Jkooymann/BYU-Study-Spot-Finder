@@ -47,15 +47,43 @@ const FEATURE_AMENITY_IDS = {
   outlets: 1, wifi: 2, tables: 3, comfySeating: 4, foodAllowed: 5, quietZone: 8, talkingAllowed: 9,
 };
 
-/* dbId: building_id in Supabase (see supabase/seed.sql)
-   map: position of the building on the stylized campus map (SVG viewBox 0 0 800 460) */
+/* Filter options shown everywhere (Get Started, Filter Panel, active-filter chips).
+   Indoors / Outdoors is a separate "Setting" choice instead of a feature checkbox. */
+const FILTER_FEATURES = FEATURES.filter((f) => f.key !== 'outdoors');
+const SETTINGS = [
+  { key: '',         label: 'Anywhere', icon: 'layers' },
+  { key: 'indoors',  label: 'Indoors',  icon: 'indoors' },
+  { key: 'outdoors', label: 'Outdoors', icon: 'outdoors' },
+];
+
+/* Buildings
+   dbId     building_id in Supabase (see supabase/seed.sql). Buildings added after
+            the first six get their id from the database by building code when
+            the site loads (see Store.loadShared), so no id is hard-coded here.
+   lat/lng  the building's center on campus. The Campus Map places each building
+            from these coordinates, so the layout matches the real campus.
+            Source: byudevelopers/BYUFreeFood buildings.js.
+   size     footprint on the map in pixels (simplified, roughly to scale)
+   floors   floors with study space. For the newer buildings these are estimates;
+            correct them if you know better. */
 const BUILDINGS = [
-  { id: 'hbll', dbId: 1, name: 'Harold B. Lee Library',    short: 'HBLL', floors: [1, 2, 3, 4, 5],    map: { x: 290, y: 205, w: 210, h: 150 } },
-  { id: 'wsc',  dbId: 2, name: 'Wilkinson Student Center', short: 'WSC',  floors: [1, 2, 3],          map: { x: 580, y: 215, w: 170, h: 160 } },
-  { id: 'jfsb', dbId: 3, name: 'Joseph F. Smith Building', short: 'JFSB', floors: [1, 2, 3, 4],       map: { x: 50,  y: 215, w: 185, h: 130 } },
-  { id: 'tnrb', dbId: 4, name: 'Tanner Building',          short: 'TNRB', floors: [1, 2, 3, 4, 5, 6], map: { x: 65,  y: 45,  w: 165, h: 105 } },
-  { id: 'tmcb', dbId: 5, name: 'Talmage Building',         short: 'TMCB', floors: [1, 2, 3, 4],       map: { x: 320, y: 40,  w: 155, h: 100 } },
-  { id: 'esc',  dbId: 6, name: 'Eyring Science Center',    short: 'ESC',  floors: [1, 2, 3],          map: { x: 565, y: 45,  w: 175, h: 110 } },
+  { id: 'hbll', dbId: 1, name: 'Harold B. Lee Library',            short: 'HBLL', floors: [1, 2, 3, 4, 5],    lat: 40.248630, lng: -111.649260, size: [104, 86] },
+  { id: 'wsc',  dbId: 2, name: 'Wilkinson Student Center',         short: 'WSC',  floors: [1, 2, 3],          lat: 40.248609, lng: -111.647124, size: [108, 84] },
+  { id: 'jfsb', dbId: 3, name: 'Joseph F. Smith Building',         short: 'JFSB', floors: [1, 2, 3, 4],       lat: 40.248371, lng: -111.651633, size: [104, 70] },
+  { id: 'tnrb', dbId: 4, name: 'Tanner Building',                  short: 'TNRB', floors: [1, 2, 3, 4, 5, 6], lat: 40.250409, lng: -111.652574, size: [88, 54] },
+  { id: 'tmcb', dbId: 5, name: 'Talmage Building',                 short: 'TMCB', floors: [1, 2, 3, 4],       lat: 40.249600, lng: -111.650862, size: [78, 46] },
+  { id: 'esc',  dbId: 6, name: 'Eyring Science Center',            short: 'ESC',  floors: [1, 2, 3],          lat: 40.247227, lng: -111.650281, size: [66, 52] },
+  { id: 'jkb',  name: 'Jesse Knight Building',                     short: 'JKB',  floors: [1, 2, 3, 4],       lat: 40.250211, lng: -111.649935, size: [62, 40] },
+  { id: 'kmbl', name: 'Spencer W. Kimball Tower',                  short: 'KMBL', floors: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], lat: 40.247512, lng: -111.651053, size: [50, 40], nudge: [-6, 0] },
+  { id: 'mckb', name: 'McKay School of Education',                 short: 'MCKB', floors: [1, 2, 3],          lat: 40.247222, lng: -111.651861, size: [62, 40], nudge: [-6, 4] },
+  { id: 'hrcb', name: 'Kennedy Center (Herald R. Clark Building)', short: 'HRCB', floors: [1, 2, 3],          lat: 40.247638, lng: -111.649381, size: [58, 38], nudge: [6, 0] },
+  { id: 'marb', name: 'Thomas L. Martin Building',                 short: 'MARB', floors: [1, 2, 3],          lat: 40.246816, lng: -111.649241, size: [62, 40] },
+  { id: 'cb',   name: 'Clyde Engineering Building',                short: 'CB',   floors: [1, 2, 3, 4],       lat: 40.246903, lng: -111.648087, size: [62, 42] },
+  { id: 'ctb',  name: 'Crabtree Technology Building',              short: 'CTB',  floors: [1, 2, 3],          lat: 40.247434, lng: -111.646751, size: [60, 40] },
+  { id: 'snlb', name: 'William H. Snell Building',                 short: 'SNLB', floors: [1, 2, 3],          lat: 40.247388, lng: -111.645336, size: [56, 38] },
+  { id: 'jrcb', name: 'J. Reuben Clark Law Building',              short: 'JRCB', floors: [1, 2, 3, 4],       lat: 40.249580, lng: -111.645376, size: [76, 50] },
+  { id: 'jsb',  name: 'Joseph Smith Building',                     short: 'JSB',  floors: [1, 2],             lat: 40.245845, lng: -111.651656, size: [56, 40], nudge: [-6, 0] },
+  { id: 'bnsn', name: 'Ezra Taft Benson Building',                 short: 'BNSN', floors: [1, 2, 3],          lat: 40.245834, lng: -111.650856, size: [52, 38], nudge: [6, 0] },
 ];
 
 const SPOTS = [
