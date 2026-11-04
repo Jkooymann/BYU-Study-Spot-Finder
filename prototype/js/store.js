@@ -1,6 +1,6 @@
 /* =========================================================================
    Store — reads the mock data (data.js) and keeps the user's own data in
-   localStorage: ratings, active filters, user-added spots, and deleted sample spots.
+   localStorage: active filters, user-added spots, and deleted sample spots.
    Favorites and spots added on the Add a Spot page are saved in Supabase
    (db.js) for the student who is logged in; logged-out visitors are asked
    to log in to save them. If Supabase is off or can't be reached, new spots
@@ -68,8 +68,7 @@ const Store = (() => {
     if (fromDb && isOwnSpot(fromDb)) {
       const before = shared.spots;
       shared.spots = before.filter((s) => s.id !== id);
-      const r = ratings(); delete r[id]; write('ratings', r);
-      return DB.deleteSpot(fromDb.dbId).catch((e) => { shared.spots = before; throw e; });
+        return DB.deleteSpot(fromDb.dbId).catch((e) => { shared.spots = before; throw e; });
     }
     if (userSpots().some((s) => s.id === id)) {
       write('userSpots', userSpots().filter((s) => s.id !== id));
@@ -77,7 +76,6 @@ const Store = (() => {
       write('deletedSampleIds', Array.from(new Set(deletedIds().concat(id))));
     }
     write('favorites', localFavorites().filter((f) => f !== id));
-    const r = ratings(); delete r[id]; write('ratings', r);
     return Promise.resolve();
   }
   function restoreSampleSpots() { write('deletedSampleIds', []); }
@@ -116,7 +114,7 @@ const Store = (() => {
     }
   }
 
-  /* ---------------- Favorites & ratings ---------------- */
+  /* ---------------- Favorites ---------------- */
   function localFavorites() { return read('favorites', []); }
   function favorites() {
     if (shared.status === 'off' || shared.status === 'error') return localFavorites();
@@ -153,9 +151,6 @@ const Store = (() => {
       .catch((e) => { shared.favDbIds = before; throw e; });
     return { on, saved };
   }
-  function ratings() { return read('ratings', {}); }
-  function getRating(id) { return ratings()[id] || 0; }
-  function setRating(id, n) { const r = ratings(); if (n) r[id] = n; else delete r[id]; write('ratings', r); }
 
   /* ---------------- Filters ---------------- */
   function emptyFilters() {
@@ -223,7 +218,7 @@ const Store = (() => {
   return {
     allSpots, getSpot, addUserSpot, deleteSpot, isOwnSpot, restoreSampleSpots, deletedIds,
     sharedStatus, currentStudent, needsLogin, loadShared,
-    favorites, isFav, toggleFav, getRating, setRating,
+    favorites, isFav, toggleFav,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,
     pref, setPref, clone,
   };

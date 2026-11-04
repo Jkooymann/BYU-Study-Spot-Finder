@@ -167,15 +167,6 @@ document.addEventListener('click', (e) => {
       App.refresh();
       return;
     }
-    const rate = t.closest('[data-rate]');
-    if (rate) {
-      const id = rate.dataset.rate, v = Number(rate.dataset.value);
-      Store.setRating(id, Store.getRating(id) === v ? 0 : v);
-      SpotDialog.render();
-      App.renderBase(App.base, true);
-      $(`[data-rate="${id}"][data-value="${v}"]`).focus();
-      return;
-    }
   }
 
   // Favorite star (cards, dialog)

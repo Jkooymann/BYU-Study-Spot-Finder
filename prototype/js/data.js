@@ -2,7 +2,7 @@
    BYU Study Spot Finder — MOCK DATA
    This is the ONE data file every screen reads from.
    Favorites are saved in Supabase (shared with the whole team) — see db.js.
-   Other user data (ratings, user-added spots) still lives in
+   Other user data (user-added spots) still lives in
    localStorage — see store.js.
 
    Spot data model

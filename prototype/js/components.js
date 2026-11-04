@@ -1,6 +1,6 @@
 /* =========================================================================
    Reusable components: icons, top bar + Home Menu, chips, badges, star
-   rating, spot card, active-filter bar, group-size picker, floor plan,
+   spot card, active-filter bar, group-size picker, floor plan,
    Filter Panel, Spot Details dialog, toast.
    ========================================================================= */
 
@@ -138,18 +138,6 @@ function favButton(id, withLabel = false) {
   const on = Store.isFav(id);
   return `<button type="button" class="fav-btn${on ? ' is-on' : ''}${withLabel ? ' fav-btn-label' : ''}" data-fav="${id}" aria-pressed="${on}" aria-label="${on ? 'Remove from favorites' : 'Add to favorites'}">${icon('star')}${withLabel ? `<span>${on ? 'Favorited' : 'Favorite'}</span>` : ''}</button>`;
 }
-function starRating(id) {
-  const r = Store.getRating(id);
-  return `<div class="stars" role="radiogroup" aria-label="Your rating">
-    ${[1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="${r === n}" aria-label="${plural(n, 'star')}" class="star${n <= r ? ' is-on' : ''}" data-rate="${id}" data-value="${n}">${icon('star')}</button>`).join('')}
-  </div>`;
-}
-function starsSmall(n) {
-  if (!n) return '';
-  return `<span class="stars-small" aria-label="Your rating: ${plural(n, 'star')}">${[1, 2, 3, 4, 5].map((i) => `<span class="${i <= n ? 'is-on' : ''}">${icon('star')}</span>`).join('')}</span>`;
-}
-
-/** "My spot" or "Added by <name>" for spots students added; nothing for sample spots. */
 function spotBadge(s) {
   if (!s.isUserSpot) return '';
   const me = Store.currentStudent();
@@ -167,7 +155,7 @@ function spotCard(s, opts = {}) {
         ${spotBadge(s)}
       </div>
       <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}</p>
-      <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}${starsSmall(Store.getRating(s.id))}</div>
+      <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}</div>
       <ul class="feature-icons" aria-label="Features">
         ${feats.map((f) => `<li title="${f.label}">${icon(f.key)}<span class="sr-only">${f.label}</span></li>`).join('')}
       </ul>
@@ -422,9 +410,6 @@ const SpotDialog = {
             <span class="yn" aria-hidden="true">${s.features[f.key] ? '✓' : '✗'}</span>${icon(f.key)}<span>${f.label}</span>
             <span class="sr-only">${s.features[f.key] ? 'yes' : 'no'}</span></li>`).join('')}
         </ul>
-        <h3 class="sd-h">Your rating</h3>
-        ${starRating(s.id)}
-        <p class="fact-note">Ratings are saved on this device only.</p>
         <div class="sd-danger">
           ${this.confirming ? `
             <p><strong>Delete this spot?</strong> ${Store.isOwnSpot(s) ? 'This removes your spot for your whole team.' : s.dbId != null ? 'This hides the spot on this device. You can restore hidden spots from the list page.' : 'Your spot will be removed from this device.'}</p>

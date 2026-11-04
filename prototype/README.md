@@ -13,8 +13,8 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | `js/supabase-config.js` | The Supabase project URL and publishable key. |
 | `js/data.js` | **The one mock data file.** Buildings, filter list, and 26 study spots across 6 buildings. Each spot's `dbId` is its `study_spot_id` in Supabase. |
 | `js/db.js` | The only file that talks to Supabase: loads/adds/removes favorites, loads/adds/deletes student-added spots, and sign-up / log-in. |
-| `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (ratings, active filters, deleted sample spots, and added spots when the database is off). Also holds the filter-matching logic. |
-| `js/components.js` | Reusable pieces: top bar + Home Menu, chips, spot card, busyness badge, group-size picker, star rating, floor plan, Filter Panel, Spot Details, toast. |
+| `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (active filters, deleted sample spots, and added spots when the database is off). Also holds the filter-matching logic. |
+| `js/components.js` | Reusable pieces: top bar + Home Menu, chips, spot card, busyness badge, group-size picker, floor plan, Filter Panel, Spot Details, toast. |
 | `js/pages.js` | The pages: Get Started, Campus Map, Building Floor View, Study Spot List, Favorites & Saved Filters, Add a Spot. |
 | `js/app.js` | Hash router and all click / keyboard handling. |
 

@@ -311,13 +311,10 @@ button { cursor: pointer; }
 .fav-btn:hover { background: var(--accent-soft); color: var(--accent-ink); }
 .fav-btn .ic { width: 24px; height: 24px; }
 .fav-btn.is-on { color: var(--accent); }
-.fav-btn.is-on .ic, .star.is-on .ic, .stars-small .is-on .ic, .fav-star .ic { fill: currentColor; }
+.fav-btn.is-on .ic, .fav-star .ic { fill: currentColor; }
 .fav-btn-label { width: auto; display: inline-flex; gap: 8px; padding: 0 16px; margin: 0; border: 1.5px solid var(--border); font-weight: 650; color: var(--text); }
 .fav-btn-label.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
 .fav-btn-label.is-on .ic { color: var(--accent); }
-.stars-small { display: inline-flex; color: var(--border); }
-.stars-small .ic { width: 14px; height: 14px; }
-.stars-small .is-on { color: var(--accent); }
 
 /* ---------------- List page ---------------- */
 .sort { display: flex; align-items: center; gap: 8px; }
@@ -490,11 +487,6 @@ button { cursor: pointer; }
 .feature-list .not { color: var(--muted); }
 .feature-list .not .yn { background: var(--surface-2); color: var(--muted); }
 .feature-list .not .ic { color: var(--muted); }
-.stars { display: flex; gap: 2px; }
-.star { display: grid; place-items: center; width: var(--tap); height: var(--tap); border: 0; border-radius: 10px; background: transparent; color: var(--border); }
-.star .ic { width: 30px; height: 30px; }
-.star.is-on { color: var(--accent); }
-.star:hover { background: var(--accent-soft); }
 .sd-danger { border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .sd-danger-row { display: flex; gap: 8px; }
 .sd-danger .btn-ghost.danger-text { align-self: flex-start; border-color: transparent; padding-left: 4px; }
