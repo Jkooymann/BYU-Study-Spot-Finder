@@ -27,8 +27,14 @@ const App = {
   },
 
   route() {
-    const h = location.hash.slice(1) || 'start';
+    // Account pages (#welcome, #login, #signup) are optional; the rest of the site works without signing in.
+    let h = location.hash.slice(1) || 'start';
+    // Coming back from a Supabase email link (#access_token=… or #error=…): Supabase reads it, we show Get Started.
+    if (/(^|&)(access_token|error)=/.test(h)) { h = 'start'; history.replaceState(null, '', '#start'); }
+    // Already logged in: skip the Welcome / Log in / Create account pages.
+    if (AccountPages.isPublic(h) && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
     setHomeMenu(false);
+    setAccountMenu(false);
     FilterPanel.close();
     if (h.startsWith('spot-')) {
       const id = h.slice(5);
@@ -53,7 +59,8 @@ const App = {
   renderBase(h, keepScroll = false) {
     const y = window.scrollY;
     let html;
-    if (h === 'start') html = Pages.start();
+    if (AccountPages.isPublic(h)) html = AccountPages.render(h);
+    else if (h === 'start') html = Pages.start();
     else if (h === 'map') html = Pages.map();
     else if (h.startsWith('map-spot-')) html = Pages.map(h.slice(9));
     else if (h.startsWith('building-')) { const [id, fl] = h.slice(9).split('-f'); html = Pages.building(id, fl); }
@@ -61,11 +68,11 @@ const App = {
     else if (h === 'favorites' || h === 'favorites-filters') html = Pages.favorites(h === 'favorites-filters' ? 'filters' : 'spots');
     else if (h === 'add') html = Pages.add();
     else html = Pages.notFound();
-    renderTopBar(this.pageKeyFor(h));
+    renderTopBar(AccountPages.isPublic(h) ? 'account' : this.pageKeyFor(h));
     $('#app').innerHTML = html;
     this.renderedBase = h;
     const names = { start: 'Get Started', map: 'Campus Map', list: 'Study Spots', favorites: 'Favorites', add: 'Add a Spot' };
-    document.title = `${names[this.pageKeyFor(h)] || 'Floor View'} · BYU Study Spot Finder`;
+    document.title = `${AccountPages.titles[h] || names[this.pageKeyFor(h)] || 'Floor View'} · BYU Study Spot Finder`;
     if (h.startsWith('building-')) document.title = `${(buildingById(h.slice(9).split('-f')[0]) || {}).name || 'Building'} · BYU Study Spot Finder`;
     window.scrollTo(0, keepScroll ? y : 0);
     const flash = $('.spot-card.is-flash');
@@ -93,6 +100,8 @@ const App = {
 
   /** Re-render the current page after data/filters change. */
   refresh() {
+    // Never replace a form while someone is typing; just update the top bar.
+    if (AccountPages.isPublic(this.base)) { renderTopBar('account'); return; }
     this.renderBase(this.base, true);
     if (SpotDialog.id) SpotDialog.render();
   },
@@ -106,6 +115,11 @@ const App = {
 /* ---------------- Delegated clicks ---------------- */
 document.addEventListener('click', (e) => {
   const t = e.target;
+
+  // Account menu (your name in the top bar)
+  if (t.closest('#account-btn')) { setAccountMenu(!accountMenuOpen()); return; }
+  if (t.closest('[data-sign-out]')) { setAccountMenu(false); AccountSession.signOut(); return; }
+  if (accountMenuOpen() && !t.closest('#account-menu')) setAccountMenu(false);
 
   // Home Menu
   if (t.closest('#home-btn')) { setHomeMenu(!homeMenuOpen()); return; }
@@ -169,7 +183,8 @@ document.addEventListener('click', (e) => {
   if (fav) {
     e.stopPropagation();
     const id = fav.dataset.fav;
-    const { on } = App.toggleFav(id);
+    const { on, needsLogin } = App.toggleFav(id);
+    if (needsLogin) { toast('Log in to save favorites.', { href: '#login', label: 'Log in' }); return; }
     toast(on ? 'Added to Favorites' : 'Removed from Favorites');
     const again = $(`#spot-dialog [data-fav="${id}"]`) || $(`#app [data-fav="${id}"]`);
     if (again) again.focus();
@@ -227,7 +242,7 @@ document.addEventListener('click', (e) => {
   }
 
   // List
-  if (t.closest('[data-restore-spots]')) { Store.restoreSampleSpots(); App.refresh(); toast('Sample spots restored'); return; }
+  if (t.closest('[data-restore-spots]')) { Store.restoreSampleSpots(); App.refresh(); toast('Hidden spots restored'); return; }
 
   // Favorites page
   const unfav = t.closest('[data-unfav]');
@@ -287,15 +302,6 @@ function saveRename(btn) {
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.closest('#filter-panel')) { FilterPanel.handleChange(e); return; }
-  if (t.id === 'student-select') {
-    Store.setStudent(Number(t.value));
-    App.loadShared().then(() => {
-      const me = Store.currentStudent();
-      if (me) toast(`Showing favorites for ${me.display_name}`);
-      const sel = $('#student-select'); if (sel) sel.focus();
-    });
-    return;
-  }
   if (t.id === 'sort-select') { Store.setPref('sort', t.value); App.refresh(); $('#sort-select').focus(); return; }
   if (t.id === 'add-building') {
     AddState.building = t.value;
@@ -337,6 +343,7 @@ document.addEventListener('submit', async (e) => {
     (s.errors.name ? $('#add-name') : $('#add-building')).focus();
     return;
   }
+  if (Store.needsLogin()) { toast('Log in to add a spot for your team.', { href: '#login', label: 'Log in' }); return; }
   const features = {};
   FEATURES.forEach((f) => { features[f.key] = !!s.tags[f.key]; });
   const submitBtn = e.target.querySelector('[type="submit"]');
@@ -368,6 +375,7 @@ document.addEventListener('submit', async (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (homeMenuOpen()) { setHomeMenu(false); $('#home-btn').focus(); return; }
+    if (accountMenuOpen()) { setAccountMenu(false); $('#account-btn').focus(); return; }
     if (!$('#filter-panel').hidden) { FilterPanel.close(); return; }
     if (SpotDialog.id) { App.closeSpot(); return; }
     if ($('.map-popup')) { App.go('map'); return; }

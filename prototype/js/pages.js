@@ -215,7 +215,7 @@ Pages.list = () => {
     ${body}
     <div class="list-foot">
       <a class="btn btn-secondary" href="#add">${icon('plus')}Add a spot</a>
-      ${hidden ? `<button type="button" class="link-btn" data-restore-spots>Restore ${plural(hidden, 'deleted sample spot')}</button>` : ''}
+      ${hidden ? `<button type="button" class="link-btn" data-restore-spots>Restore ${plural(hidden, 'hidden spot')}</button>` : ''}
     </div>
   </section>`;
 };
@@ -288,7 +288,8 @@ Pages.favorites = (tab) => {
 function favoritesNote() {
   const status = Store.sharedStatus();
   const me = Store.currentStudent();
-  if (status === 'ok' && me) return `Favorite spots for <strong>${esc(me.display_name)}</strong>, shared with your team. Saved filters stay on this device.`;
+  if (status === 'ok' && me) return `Favorite spots saved to <strong>${esc(me.display_name)}</strong>’s account. Saved filters stay on this device.`;
+  if (status === 'ok') return '<a href="#login">Log in</a> to save favorite spots to your account. Saved filters stay on this device.';
   if (status === 'loading') return 'Loading shared favorites…';
   if (status === 'error') return 'Could not reach the database, so favorites are saved on this device for now.';
   return 'Saved on this device.';
@@ -298,6 +299,7 @@ function favoritesNote() {
 function addSpotNote() {
   const me = Store.currentStudent();
   if (Store.sharedStatus() === 'ok' && me) return `Your spot is saved as <strong>${esc(me.display_name)}</strong> and shared with your team.`;
+  if (Store.needsLogin()) return '<a href="#login">Log in</a> to add a spot. It will be shared with your team.';
   if (Store.sharedStatus() === 'loading') return 'Connecting to the database…';
   if (Store.sharedStatus() === 'error') return 'Could not reach the database, so your spot is saved only on this device.';
   return 'Your spot is saved only on this device.';

@@ -71,7 +71,7 @@ function renderTopBar(pageKey) {
         ${link('map', 'Map', 'map')}${link('list', 'List', 'list')}${link('favorites', 'Favorites', 'star')}
       </nav>
       <div class="topbar-right">
-      ${studentPicker()}
+      ${accountControl(pageKey)}
       <div class="home-menu-wrap">
         <button id="home-btn" class="icon-btn home-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="home-menu" aria-label="Home menu">${icon('home')}</button>
         <div id="home-menu" class="home-menu" role="menu" aria-label="Home menu" hidden>
@@ -85,17 +85,34 @@ function renderTopBar(pageKey) {
       </div>
     </div>`;
 }
-/** "Viewing as" dropdown: which sample student's favorites to show and save (no sign-in yet). */
-function studentPicker() {
-  const list = Store.students();
-  if (Store.sharedStatus() !== 'ok' || !list.length) return '';
+/** Top-right account control: "Log in" when logged out, or your name with a Log out menu. */
+function accountControl(pageKey) {
+  // Still checking who is logged in: keep the space empty instead of flashing "Log in".
+  if (Store.sharedStatus() === 'loading') return '';
   const me = Store.currentStudent();
-  return `<label class="student-pick" title="Favorites are saved for this student and shared with your team">
-      ${icon('user')}
-      <select id="student-select" class="student-select" aria-label="Viewing as student">
-        ${list.map((u) => `<option value="${u.user_id}"${me && me.user_id === u.user_id ? ' selected' : ''}>${esc(u.display_name)}</option>`).join('')}
-      </select>
-    </label>`;
+  if (!me) {
+    const cur = pageKey === 'account';
+    return `<a href="#welcome" class="btn btn-sm login-btn${cur ? ' is-current' : ''}"${cur ? ' aria-current="page"' : ''}>${icon('user')}<span class="login-label">Log in</span></a>`;
+  }
+  return `<div class="account-menu-wrap">
+      <button id="account-btn" class="btn btn-sm login-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" title="${esc(me.display_name)}">${icon('user')}<span class="account-name">${esc(me.display_name)}</span></button>
+      <div id="account-menu" class="home-menu account-menu" role="menu" aria-label="Account" hidden>
+        <div class="account-menu-head"><strong>${esc(me.display_name)}</strong><span>${esc(me.byu_net_id)}@byu.edu</span></div>
+        <button type="button" role="menuitem" class="home-item" data-sign-out>
+          <span class="home-item-ic">${icon('back')}</span>
+          <span><span class="home-item-label">Log out</span><span class="home-item-sub">Your favorites stay saved</span></span>
+        </button>
+      </div>
+    </div>`;
+}
+function accountMenuOpen() { const m = $('#account-menu'); return !!m && !m.hidden; }
+function setAccountMenu(open) {
+  const m = $('#account-menu'), b = $('#account-btn');
+  if (!m) return;
+  m.hidden = !open;
+  b.setAttribute('aria-expanded', String(open));
+  b.classList.toggle('is-open', open);
+  if (open) $('.home-item', m).focus();
 }
 function homeMenuOpen() { const m = $('#home-menu'); return m && !m.hidden; }
 function setHomeMenu(open) {
@@ -243,13 +260,15 @@ function floorPlanSvg(buildingId, floor, spots = [], opts = {}) {
 
 /* ---------------- Toast ---------------- */
 let toastTimer;
-function toast(msg) {
+/** Short message at the bottom. Optional action adds a link, e.g. { href: '#login', label: 'Log in' }. */
+function toast(msg, action) {
   const t = $('#toast');
   t.textContent = msg;
+  if (action) t.insertAdjacentHTML('beforeend', ` <a class="toast-action" href="${action.href}">${esc(action.label)}</a>`);
   t.hidden = false;
   t.classList.add('is-on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.classList.remove('is-on'); setTimeout(() => { t.hidden = true; }, 250); }, 2600);
+  toastTimer = setTimeout(() => { t.classList.remove('is-on'); setTimeout(() => { t.hidden = true; }, 250); }, action ? 5000 : 2600);
 }
 
 /* ---------------- Sheets (shared open/close) ---------------- */
@@ -437,7 +456,7 @@ const SpotDialog = {
         <p class="fact-note">Ratings are saved on this device only.</p>
         <div class="sd-danger">
           ${this.confirming ? `
-            <p><strong>Delete this spot?</strong> ${s.isUserSpot ? (s.id.startsWith('d') ? 'This removes the spot for your whole team.' : 'Your spot will be removed from this device.') : 'This hides the sample spot on this device. You can restore sample spots from the list page.'}</p>
+            <p><strong>Delete this spot?</strong> ${Store.isOwnSpot(s) ? 'This removes your spot for your whole team.' : s.dbId != null ? 'This hides the spot on this device. You can restore hidden spots from the list page.' : 'Your spot will be removed from this device.'}</p>
             <div class="sd-danger-row">
               <button type="button" class="btn btn-danger btn-sm" data-sd-delete-confirm>Delete spot</button>
               <button type="button" class="btn btn-ghost btn-sm" data-sd-delete-cancel>Cancel</button>

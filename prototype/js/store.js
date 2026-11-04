@@ -2,9 +2,10 @@
    Store — reads the mock data (data.js) and keeps the user's own data in
    localStorage: ratings, active filters, saved filters, filter history,
    user-added spots, and deleted sample spots.
-   Favorites and spots added on the Add a Spot page are shared through
-   Supabase (db.js) for the student picked in the top bar. If Supabase is
-   off or can't be reached, new spots and favorites stay on this device.
+   Favorites and spots added on the Add a Spot page are saved in Supabase
+   (db.js) for the student who is logged in; logged-out visitors are asked
+   to log in to save them. If Supabase is off or can't be reached, new spots
+   and favorites stay on this device.
    Every read/write is wrapped in try/catch so the app still works when
    storage is blocked (it falls back to in-memory values).
    ========================================================================= */
@@ -33,7 +34,7 @@ const Store = (() => {
   function allSpots() {
     const hidden = new Set(deletedIds());
     return SPOTS.filter((s) => !hidden.has(s.id))
-      .concat(shared.spots.map((s) => ({ ...s, isUserSpot: true })))
+      .concat(shared.spots.filter((s) => !hidden.has(s.id)).map((s) => ({ ...s, isUserSpot: true })))
       .concat(userSpots().map((s) => ({ ...s, isUserSpot: true })));
   }
   function getSpot(id) { return allSpots().find((s) => s.id === id) || null; }
@@ -55,10 +56,17 @@ const Store = (() => {
     return { ...saved, isUserSpot: true };
   }
 
-  /** Delete a spot. Returns a promise that rejects (and undoes) if Supabase refused. */
+  /** True for a database spot the logged-in student added (only they can delete it). */
+  function isOwnSpot(spot) { return !!(spot && shared.me && spot.dbId != null && spot.submittedBy === shared.me.user_id); }
+
+  /**
+   * Delete a spot. Your own database spots are deleted for everyone; sample
+   * spots and teammates' spots are hidden on this device. Returns a promise
+   * that rejects (and undoes) if Supabase refused.
+   */
   function deleteSpot(id) {
     const fromDb = shared.spots.find((s) => s.id === id);
-    if (fromDb) {
+    if (fromDb && isOwnSpot(fromDb)) {
       const before = shared.spots;
       shared.spots = before.filter((s) => s.id !== id);
       const r = ratings(); delete r[id]; write('ratings', r);
@@ -77,8 +85,9 @@ const Store = (() => {
 
   /* ---------------- Shared favorites (Supabase) ---------------- */
   // status: 'off' (no Supabase key), 'loading', 'ok', or 'error'
+  // me: the logged-in student's student_user row, or null when logged out.
   // spots: student-added spots from the database (not in data.js)
-  const shared = { status: DB.ready ? 'loading' : 'off', students: [], favDbIds: [], spots: [] };
+  const shared = { status: DB.ready ? 'loading' : 'off', me: null, favDbIds: [], spots: [] };
   const spotIdByDbId = (dbId) => {
     const s = SPOTS.find((x) => x.dbId === dbId) || shared.spots.find((x) => x.dbId === dbId);
     return s ? s.id : null;
@@ -86,24 +95,21 @@ const Store = (() => {
   const isShared = (spot) => shared.status === 'ok' && spot && spot.dbId != null;
 
   function sharedStatus() { return shared.status; }
-  function students() { return shared.students; }
-  function currentStudent() {
-    const id = pref('studentId', null);
-    return shared.students.find((u) => u.user_id === id) || shared.students[0] || null;
-  }
-  function setStudent(userId) { setPref('studentId', userId); }
+  function currentStudent() { return shared.me; }
+  /** True when favorites need a login (the database is up but nobody is logged in). */
+  function needsLogin() { return shared.status === 'ok' && !shared.me; }
 
-  /** Load students, student-added spots, and the current student's favorites from Supabase. */
+  /** Load who is logged in, student-added spots, and the student's favorites from Supabase. */
   async function loadShared() {
     if (!DB.ready) return;
     try {
       const inDataJs = new Set(SPOTS.map((s) => s.dbId));
-      // If spots can't load (e.g. the spots migration isn't in the database yet), keep favorites working.
+      // If spots can't load, keep favorites and login working.
       const spots = DB.studentSpots().catch((e) => { console.error('Could not load added spots from Supabase', e); return []; });
-      [shared.students, shared.spots] = await Promise.all([DB.students(), spots]);
-      shared.spots = shared.spots.filter((s) => !inDataJs.has(s.dbId) && s.building);
-      const me = currentStudent();
+      const [me, loaded] = await Promise.all([DB.currentStudent(), spots]);
+      shared.spots = loaded.filter((s) => !inDataJs.has(s.dbId) && s.building);
       shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
+      shared.me = me;
       shared.status = 'ok';
     } catch (e) {
       console.error('Could not load favorites from Supabase', e);
@@ -115,6 +121,7 @@ const Store = (() => {
   function localFavorites() { return read('favorites', []); }
   function favorites() {
     if (shared.status === 'off' || shared.status === 'error') return localFavorites();
+    if (needsLogin()) return [];
     const localOnly = localFavorites().filter((id) => { const s = getSpot(id); return s && s.dbId == null; });
     if (shared.status === 'loading') return localOnly;
     const fromDb = shared.favDbIds.map(spotIdByDbId).filter(Boolean);
@@ -129,6 +136,7 @@ const Store = (() => {
    */
   function toggleFav(id) {
     const spot = getSpot(id);
+    if (needsLogin()) return { on: false, needsLogin: true, saved: Promise.resolve() };
     if (shared.status === 'loading' && spot && spot.dbId != null) {
       return { on: false, saved: Promise.reject(new Error('Favorites are still loading')) };
     }
@@ -236,8 +244,8 @@ const Store = (() => {
   function setPref(key, value) { write('pref.' + key, value); }
 
   return {
-    allSpots, getSpot, addUserSpot, deleteSpot, restoreSampleSpots, deletedIds,
-    sharedStatus, students, currentStudent, setStudent, loadShared,
+    allSpots, getSpot, addUserSpot, deleteSpot, isOwnSpot, restoreSampleSpots, deletedIds,
+    sharedStatus, currentStudent, needsLogin, loadShared,
     favorites, isFav, toggleFav, getRating, setRating,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,
     savedFilters, saveFilterSet, renameSaved, deleteSaved,
