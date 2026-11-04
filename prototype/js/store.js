@@ -2,10 +2,10 @@
    Store — reads the mock data (data.js) and keeps the user's own data in
    localStorage: ratings, active filters, saved filters, filter history,
    user-added spots, and deleted sample spots.
-   Favorites of sample spots are saved in Supabase (db.js) for the student
-   who is logged in; logged-out visitors are asked to log in to save them.
-   Favorites of spots you added yourself stay on this device because those
-   spots are not in the database yet.
+   Favorites and spots added on the Add a Spot page are saved in Supabase
+   (db.js) for the student who is logged in; logged-out visitors are asked
+   to log in to save them. If Supabase is off or can't be reached, new spots
+   and favorites stay on this device.
    Every read/write is wrapped in try/catch so the app still works when
    storage is blocked (it falls back to in-memory values).
    ========================================================================= */
@@ -34,18 +34,44 @@ const Store = (() => {
   function allSpots() {
     const hidden = new Set(deletedIds());
     return SPOTS.filter((s) => !hidden.has(s.id))
+      .concat(shared.spots.filter((s) => !hidden.has(s.id)).map((s) => ({ ...s, isUserSpot: true })))
       .concat(userSpots().map((s) => ({ ...s, isUserSpot: true })));
   }
   function getSpot(id) { return allSpots().find((s) => s.id === id) || null; }
 
-  function addUserSpot(spot) {
+  /**
+   * Save a spot from the Add a Spot page. Goes to Supabase when it is
+   * connected (rejects if saving fails), otherwise to this device.
+   */
+  async function addUserSpot(spot) {
+    const me = currentStudent();
+    if (shared.status === 'ok' && me) {
+      const saved = await DB.addSpot(me.user_id, spot);
+      shared.spots = shared.spots.concat(saved);
+      return { ...saved, isUserSpot: true };
+    }
     const id = 'u' + Date.now().toString(36);
     const saved = { ...spot, id };
     write('userSpots', userSpots().concat(saved));
-    return saved;
+    return { ...saved, isUserSpot: true };
   }
 
+  /** True for a database spot the logged-in student added (only they can delete it). */
+  function isOwnSpot(spot) { return !!(spot && shared.me && spot.dbId != null && spot.submittedBy === shared.me.user_id); }
+
+  /**
+   * Delete a spot. Your own database spots are deleted for everyone; sample
+   * spots and teammates' spots are hidden on this device. Returns a promise
+   * that rejects (and undoes) if Supabase refused.
+   */
   function deleteSpot(id) {
+    const fromDb = shared.spots.find((s) => s.id === id);
+    if (fromDb && isOwnSpot(fromDb)) {
+      const before = shared.spots;
+      shared.spots = before.filter((s) => s.id !== id);
+      const r = ratings(); delete r[id]; write('ratings', r);
+      return DB.deleteSpot(fromDb.dbId).catch((e) => { shared.spots = before; throw e; });
+    }
     if (userSpots().some((s) => s.id === id)) {
       write('userSpots', userSpots().filter((s) => s.id !== id));
     } else {
@@ -53,14 +79,19 @@ const Store = (() => {
     }
     write('favorites', localFavorites().filter((f) => f !== id));
     const r = ratings(); delete r[id]; write('ratings', r);
+    return Promise.resolve();
   }
   function restoreSampleSpots() { write('deletedSampleIds', []); }
 
   /* ---------------- Shared favorites (Supabase) ---------------- */
   // status: 'off' (no Supabase key), 'loading', 'ok', or 'error'
   // me: the logged-in student's student_user row, or null when logged out.
-  const shared = { status: DB.ready ? 'loading' : 'off', me: null, favDbIds: [] };
-  const spotIdByDbId = (dbId) => { const s = SPOTS.find((x) => x.dbId === dbId); return s ? s.id : null; };
+  // spots: student-added spots from the database (not in data.js)
+  const shared = { status: DB.ready ? 'loading' : 'off', me: null, favDbIds: [], spots: [] };
+  const spotIdByDbId = (dbId) => {
+    const s = SPOTS.find((x) => x.dbId === dbId) || shared.spots.find((x) => x.dbId === dbId);
+    return s ? s.id : null;
+  };
   const isShared = (spot) => shared.status === 'ok' && spot && spot.dbId != null;
 
   function sharedStatus() { return shared.status; }
@@ -68,11 +99,15 @@ const Store = (() => {
   /** True when favorites need a login (the database is up but nobody is logged in). */
   function needsLogin() { return shared.status === 'ok' && !shared.me; }
 
-  /** Load who is logged in and their favorites from Supabase. */
+  /** Load who is logged in, student-added spots, and the student's favorites from Supabase. */
   async function loadShared() {
     if (!DB.ready) return;
     try {
-      const me = await DB.currentStudent();
+      const inDataJs = new Set(SPOTS.map((s) => s.dbId));
+      // If spots can't load, keep favorites and login working.
+      const spots = DB.studentSpots().catch((e) => { console.error('Could not load added spots from Supabase', e); return []; });
+      const [me, loaded] = await Promise.all([DB.currentStudent(), spots]);
+      shared.spots = loaded.filter((s) => !inDataJs.has(s.dbId) && s.building);
       shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
       shared.me = me;
       shared.status = 'ok';
@@ -209,7 +244,7 @@ const Store = (() => {
   function setPref(key, value) { write('pref.' + key, value); }
 
   return {
-    allSpots, getSpot, addUserSpot, deleteSpot, restoreSampleSpots, deletedIds,
+    allSpots, getSpot, addUserSpot, deleteSpot, isOwnSpot, restoreSampleSpots, deletedIds,
     sharedStatus, currentStudent, needsLogin, loadShared,
     favorites, isFav, toggleFav, getRating, setRating,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,

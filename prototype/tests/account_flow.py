@@ -20,6 +20,13 @@ const DB = (() => {
     async favoriteSpotIds(uid) { return load('favs', {})[uid] || []; },
     async addFavorite(uid, sid) { const f = load('favs', {}); f[uid] = (f[uid] || []).concat(sid); save('favs', f); },
     async removeFavorite(uid, sid) { const f = load('favs', {}); f[uid] = (f[uid] || []).filter((x) => x !== sid); save('favs', f); },
+    async studentSpots() { return load('spots', []); },
+    async addSpot(uid, spot) {
+      const spots = load('spots', []); const dbId = 1000 + spots.length;
+      const saved = { ...spot, id: 'd' + dbId, dbId, submittedBy: uid, submittedByName: '' };
+      save('spots', spots.concat(saved)); return saved;
+    },
+    async deleteSpot(dbId) { save('spots', load('spots', []).filter((x) => x.dbId !== dbId)); },
     async signUp(input) {
       window.fakeCalls.push(['signUp', input]);
       const users = load('users', []);

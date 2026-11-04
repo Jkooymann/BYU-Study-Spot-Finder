@@ -42,14 +42,20 @@ const GROUP_SIZES = [
 
 const BUSYNESS = ['Usually empty', 'Moderate', 'Usually busy'];
 
-/* map: position of the building on the stylized campus map (SVG viewBox 0 0 800 460) */
+/* amenity_id in Supabase for each feature tag (Outdoors is study_spot.is_indoors). */
+const FEATURE_AMENITY_IDS = {
+  outlets: 1, wifi: 2, tables: 3, comfySeating: 4, foodAllowed: 5, quietZone: 8, talkingAllowed: 9,
+};
+
+/* dbId: building_id in Supabase (see supabase/seed.sql)
+   map: position of the building on the stylized campus map (SVG viewBox 0 0 800 460) */
 const BUILDINGS = [
-  { id: 'hbll', name: 'Harold B. Lee Library',    short: 'HBLL', floors: [1, 2, 3, 4, 5],    map: { x: 290, y: 205, w: 210, h: 150 } },
-  { id: 'wsc',  name: 'Wilkinson Student Center', short: 'WSC',  floors: [1, 2, 3],          map: { x: 580, y: 215, w: 170, h: 160 } },
-  { id: 'jfsb', name: 'Joseph F. Smith Building', short: 'JFSB', floors: [1, 2, 3, 4],       map: { x: 50,  y: 215, w: 185, h: 130 } },
-  { id: 'tnrb', name: 'Tanner Building',          short: 'TNRB', floors: [1, 2, 3, 4, 5, 6], map: { x: 65,  y: 45,  w: 165, h: 105 } },
-  { id: 'tmcb', name: 'Talmage Building',         short: 'TMCB', floors: [1, 2, 3, 4],       map: { x: 320, y: 40,  w: 155, h: 100 } },
-  { id: 'esc',  name: 'Eyring Science Center',    short: 'ESC',  floors: [1, 2, 3],          map: { x: 565, y: 45,  w: 175, h: 110 } },
+  { id: 'hbll', dbId: 1, name: 'Harold B. Lee Library',    short: 'HBLL', floors: [1, 2, 3, 4, 5],    map: { x: 290, y: 205, w: 210, h: 150 } },
+  { id: 'wsc',  dbId: 2, name: 'Wilkinson Student Center', short: 'WSC',  floors: [1, 2, 3],          map: { x: 580, y: 215, w: 170, h: 160 } },
+  { id: 'jfsb', dbId: 3, name: 'Joseph F. Smith Building', short: 'JFSB', floors: [1, 2, 3, 4],       map: { x: 50,  y: 215, w: 185, h: 130 } },
+  { id: 'tnrb', dbId: 4, name: 'Tanner Building',          short: 'TNRB', floors: [1, 2, 3, 4, 5, 6], map: { x: 65,  y: 45,  w: 165, h: 105 } },
+  { id: 'tmcb', dbId: 5, name: 'Talmage Building',         short: 'TMCB', floors: [1, 2, 3, 4],       map: { x: 320, y: 40,  w: 155, h: 100 } },
+  { id: 'esc',  dbId: 6, name: 'Eyring Science Center',    short: 'ESC',  floors: [1, 2, 3],          map: { x: 565, y: 45,  w: 175, h: 110 } },
 ];
 
 const SPOTS = [

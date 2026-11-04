@@ -215,7 +215,7 @@ Pages.list = () => {
     ${body}
     <div class="list-foot">
       <a class="btn btn-secondary" href="#add">${icon('plus')}Add a spot</a>
-      ${hidden ? `<button type="button" class="link-btn" data-restore-spots>Restore ${plural(hidden, 'deleted sample spot')}</button>` : ''}
+      ${hidden ? `<button type="button" class="link-btn" data-restore-spots>Restore ${plural(hidden, 'hidden spot')}</button>` : ''}
     </div>
   </section>`;
 };
@@ -257,7 +257,7 @@ Pages.favorites = (tab) => {
           <span class="fav-star" aria-hidden="true">${icon('star')}</span>
           <div class="fav-text">
             <button type="button" class="fav-name" data-open-spot="${s.id}">${esc(s.name)}</button>
-            ${s.isUserSpot ? '<span class="badge-mine">My spot</span>' : ''}
+            ${spotBadge(s)}
             <p class="spot-meta">${esc(b.name)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}</p>
           </div>
           <div class="fav-actions">
@@ -296,9 +296,17 @@ function favoritesNote() {
 }
 
 /* ---------------- Page 10: Add a Spot ---------------- */
+function addSpotNote() {
+  const me = Store.currentStudent();
+  if (Store.sharedStatus() === 'ok' && me) return `Your spot is saved as <strong>${esc(me.display_name)}</strong> and shared with your team.`;
+  if (Store.needsLogin()) return '<a href="#login">Log in</a> to add a spot. It will be shared with your team.';
+  if (Store.sharedStatus() === 'loading') return 'Connecting to the database…';
+  if (Store.sharedStatus() === 'error') return 'Could not reach the database, so your spot is saved only on this device.';
+  return 'Your spot is saved only on this device.';
+}
 const AddState = {
   reset() {
-    Object.assign(this, { name: '', building: '', floor: null, pin: null, groupSize: 'solo', tags: {}, description: '', errors: {}, submitted: false });
+    Object.assign(this, { name: '', building: '', floor: null, pin: null, groupSize: 'solo', tags: {}, description: '', errors: {}, submitted: false, saving: false });
   },
 };
 AddState.reset();
@@ -308,7 +316,7 @@ Pages.add = () => {
   const b = buildingById(s.building);
   const existing = b && s.floor ? Store.allSpots().filter((x) => x.building === b.id && x.floor === s.floor) : [];
   return `<section class="page page-narrow">
-    <div class="page-head"><div><h1>Add a spot</h1><p class="sub">Your spot is saved only on this device and is visible only to you.</p></div></div>
+    <div class="page-head"><div><h1>Add a spot</h1><p class="sub">${addSpotNote()}</p></div></div>
     <form id="add-form" class="form" novalidate>
       <div class="field">
         <label for="add-name" class="label">Spot name <span class="req">Required</span></label>

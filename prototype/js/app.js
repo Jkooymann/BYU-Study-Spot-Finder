@@ -153,7 +153,11 @@ document.addEventListener('click', (e) => {
     if (t.closest('[data-sd-delete-cancel]')) { SpotDialog.confirming = false; SpotDialog.render(); return; }
     if (t.closest('[data-sd-delete-confirm]')) {
       const s = Store.getSpot(SpotDialog.id);
-      Store.deleteSpot(SpotDialog.id);
+      Store.deleteSpot(SpotDialog.id).catch((err) => {
+        console.error('Could not delete spot', err);
+        App.refresh();
+        toast(`Could not delete “${s.name}”. Check your connection and try again.`);
+      });
       SpotDialog.close();
       toast(`Deleted “${s.name}”`);
       // Leave the details route without going "back" into a deleted spot.
@@ -238,7 +242,7 @@ document.addEventListener('click', (e) => {
   }
 
   // List
-  if (t.closest('[data-restore-spots]')) { Store.restoreSampleSpots(); App.refresh(); toast('Sample spots restored'); return; }
+  if (t.closest('[data-restore-spots]')) { Store.restoreSampleSpots(); App.refresh(); toast('Hidden spots restored'); return; }
 
   // Favorites page
   const unfav = t.closest('[data-unfav]');
@@ -324,10 +328,11 @@ document.addEventListener('input', (e) => {
 });
 
 /* ---------------- Add a Spot submit ---------------- */
-document.addEventListener('submit', (e) => {
+document.addEventListener('submit', async (e) => {
   if (e.target.id !== 'add-form') return;
   e.preventDefault();
   const s = AddState;
+  if (s.saving) return;
   s.errors = {};
   if (!s.name.trim()) s.errors.name = 'Enter a name for this spot.';
   if (!s.building) s.errors.location = 'Choose a building.';
@@ -338,17 +343,31 @@ document.addEventListener('submit', (e) => {
     (s.errors.name ? $('#add-name') : $('#add-building')).focus();
     return;
   }
+  if (Store.needsLogin()) { toast('Log in to add a spot for your team.', { href: '#login', label: 'Log in' }); return; }
   const features = {};
   FEATURES.forEach((f) => { features[f.key] = !!s.tags[f.key]; });
-  const saved = Store.addUserSpot({
-    name: s.name.trim(), building: s.building, floor: s.floor, room: '', position: s.pin,
-    features, groupSize: s.groupSize, busyness: 'Moderate', description: s.description.trim(),
-  });
+  const submitBtn = e.target.querySelector('[type="submit"]');
+  s.saving = true;
+  submitBtn.disabled = true;
+  let saved;
+  try {
+    saved = await Store.addUserSpot({
+      name: s.name.trim(), building: s.building, floor: s.floor, room: '', position: s.pin,
+      features, groupSize: s.groupSize, busyness: 'Moderate', description: s.description.trim(),
+    });
+  } catch (err) {
+    console.error('Could not save spot', err);
+    toast('Could not save your spot to the database. Check your connection and try again.');
+    return;
+  } finally {
+    s.saving = false;
+    if (submitBtn.isConnected) submitBtn.disabled = false;
+  }
   // Make sure the new spot is visible in the list.
   if (!Store.matches({ ...saved }, Store.getFilters())) Store.clearFilters();
   App.flashId = saved.id;
   AddState.reset();
-  toast(`Added “${saved.name}” to your spots`);
+  toast(Store.sharedStatus() === 'ok' ? `Added “${saved.name}” for your whole team` : `Added “${saved.name}” on this device`);
   App.go('list');
 });
 
