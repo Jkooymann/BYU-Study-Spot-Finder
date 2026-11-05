@@ -11,11 +11,11 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | `index.html` | The single page shell. Loads the CSS and scripts. |
 | `css/styles.css` | All styles. Colors are tokens at the top (primary navy, accent gold) with a dark-mode set. |
 | `js/supabase-config.js` | The Supabase project URL and publishable key. |
-| `js/data.js` | **The one mock data file.** Buildings, filter list, and 26 study spots across 6 buildings. Each spot's `dbId` is its `study_spot_id` in Supabase. |
+| `js/data.js` | **The one mock data file.** 17 buildings (with real campus coordinates for the map), the filter options, and 26 study spots. Each spot's `dbId` is its `study_spot_id` in Supabase. |
 | `js/db.js` | The only file that talks to Supabase: loads/adds/removes favorites, loads/adds/deletes student-added spots, and sign-up / log-in. |
-| `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (active filters, deleted sample spots, and added spots when the database is off). Also holds the filter-matching logic. |
-| `js/components.js` | Reusable pieces: top bar + Home Menu, chips, spot card, busyness badge, group-size picker, floor plan, Filter Panel, Spot Details, toast. |
-| `js/pages.js` | The pages: Get Started, Campus Map, Building Floor View, Study Spot List, Favorites & Saved Filters, Add a Spot. |
+| `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (active filters, and added spots when the database is off). Also holds the filter-matching logic. |
+| `js/components.js` | Reusable pieces: top bar + ☰ menu + account dropdown, page header, no-results message, chips, spot card, busyness badge, group-size and indoors/outdoors pickers, floor plan, Filter Panel, Spot Details, toast. |
+| `js/pages.js` | The pages: Get Started, Campus Map, Building Floor View, Study Spot List, Favorites, Add a Spot. |
 | `js/app.js` | Hash router and all click / keyboard handling. |
 
 ## Pages (URL hash)
@@ -23,20 +23,23 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | Spec page | Route |
 |---|---|
 | 1 Get Started | `#start` |
-| 2 Campus Map | `#map`, or `#map-spot-s4` to highlight a spot |
+| 2 Campus Map | `#map`, or `#map-spot-s4` to show a spot's card above the map and highlight its building |
 | 3 Building Floor View | `#building-hbll`, `#building-hbll-f3` |
 | 5 Spot Details | `#spot-s4` (opens over the page you came from) |
-| 6 Home Menu | dropdown in the top bar on every page |
+| 6 Menu | ☰ dropdown in the top bar on every page (the logo also goes to Get Started) |
 | 7 Study Spot List | `#list` |
 | 8 Filter Panel | side panel (desktop) / bottom sheet (mobile) on Map, Floor View, and List |
 | 9 Favorites | `#favorites` |
-| 10 Add a Spot | `#add` |
+| 10 Add a Spot | `#add`, or `#add-jkb` with a building already picked |
 
 ## Notes on decisions
 
 - Busyness is a typical level, not live data. It is labeled "est." everywhere and explained on Spot Details.
-- Get Started's "Indoors" chip has no checkbox in the Filter Panel (the panel uses the exact spec list). It shows as a removable "Indoors" chip. Picking both Indoors and Outdoors shows both.
-- Deleting a sample spot (or a teammate's spot) hides it on this device only. "Restore hidden spots" at the bottom of the List brings them back. Deleting your own added spot removes it.
+- Filters are the same everywhere: group size, Indoors / Outdoors (one choice: Anywhere, Indoors or Outdoors), seven features including WiFi, and building. Get Started shows the same features plus Indoors and Outdoors.
+- When nothing matches, every page shows the same message with Change filters, Pick a random spot, and Clear all filters.
+- Only the person who added a spot can delete it. Sample spots and other students' spots have no delete button.
+- The Campus Map places each building from its latitude/longitude in `data.js`; shapes are simplified. Buildings without spots are drawn dashed and invite people to add one.
+- The List sorts by Building or Least busy first (A–Z was removed).
 - User-added spots get a default busyness of "Moderate" because the form has no busyness field.
 - Group size is shown as a large picker above the Map, Floor View, and List, and at the top of the Filter Panel.
 - To reset all user data, clear the site's localStorage (keys start with `byuStudySpots.`).
@@ -46,14 +49,15 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 - Needs the migrations in `supabase/migrations/` applied to the database, and the publishable key in `js/supabase-config.js` (already filled in).
 - Favorites are saved in `favorite_spot` for the logged-in student. Logged-out visitors who tap a star are asked to log in, and the Favorites page links to Log in.
 - Spots added on the Add a Spot page are saved in `study_spot` (with `submitted_by_user_id` set to the logged-in student) and their tags in `study_spot_amenity`. Quiet zone and Talking allowed are amenities 8 and 9; Outdoors is `is_indoors`. Everyone sees every added spot; teammates' spots show an "Added by …" badge.
-- Logged-out visitors are asked to log in before adding a spot. Students can delete only their own spots (`*_own_spots_only.sql`); deleting a sample spot or a teammate's spot hides it on this device.
+- Logged-out visitors are asked to log in before adding a spot. Students can delete only their own spots (`*_own_spots_only.sql`).
+- The 11 buildings added to the map need `*_add_more_buildings.sql` applied before students can add spots in them. The site looks up their ids by building code, so until then adding a spot there shows an error and nothing else breaks.
 - If the key is missing or the database can't be reached, the site falls back to saving favorites and new spots on your device and says so on the Favorites and Add a Spot pages.
 - Still demo-level security: the favorites policies in `*_allow_demo_favorites.sql` let anyone change any row. They should be tightened to `auth.uid()` so students can only change their own favorites.
 
 ## Accounts
 
 Visitors land on `#start` and can use the whole site without logging in. The
-**Log in** button in the top bar (left of the Home button) opens `#welcome`, with
+**Log in** button in the top bar (left of the ☰ menu) opens `#welcome`, with
 `#signup` and `#login` available from there.
 
 - **Create account** (`js/account.js`) asks for name, BYU Net ID, password (8+ characters)
@@ -71,10 +75,11 @@ Visitors land on `#start` and can use the whole site without logging in. The
   Logged-in users who open `#welcome`, `#login` or `#signup` are sent to Get Started.
 - Passwords go straight to Supabase and are never stored or logged by the site.
 
-### Account flow browser checks
+### Browser checks
 
 With the prototype server running on port 8000, run
-`python3 prototype/tests/account_flow.py` from the repository root. This requires
+`python3 prototype/tests/account_flow.py` and `python3 prototype/tests/ui_flow.py`
+from the repository root. This requires
 Python Playwright and Chromium (`CHROMIUM_PATH` can override `/usr/bin/chromium`;
 `TEST_BASE_URL` can override the local server URL; `CONFIRM=1` simulates email
 confirmation being on). The checks replace `js/db.js` with an in-memory fake and

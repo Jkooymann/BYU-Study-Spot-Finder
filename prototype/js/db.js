@@ -80,12 +80,23 @@ const DB = (() => {
     return data.map(toSpot);
   }
 
+  /** Every building's id and code, so new buildings get their database id by code. */
+  async function buildings() {
+    const { data, error } = await client.from('building').select('building_id, building_code');
+    if (error) throw error;
+    return data;
+  }
+
   /** Save a new spot for this student. Returns the saved spot. */
   async function addSpot(userId, spot) {
     const f = spot.features;
+    const building = buildingById(spot.building);
+    if (!building || building.dbId == null) {
+      throw new Error(`${building ? building.short : 'This building'} isn't in the database yet. Apply the add_more_buildings migration in Supabase.`);
+    }
     const noise = f.quietZone && !f.talkingAllowed ? 'Quiet' : f.talkingAllowed && !f.quietZone ? 'Moderate' : null;
     const { data, error } = await client.from('study_spot').insert({
-      building_id: buildingById(spot.building).dbId,
+      building_id: building.dbId,
       submitted_by_user_id: userId,
       spot_name: spot.name,
       floor_number: spot.floor,
@@ -175,7 +186,7 @@ const DB = (() => {
 
   return {
     ready: !!client, students, favoriteSpotIds, addFavorite, removeFavorite,
-    studentSpots, addSpot, deleteSpot,
+    buildings, studentSpots, addSpot, deleteSpot,
     signUp, signIn, signOut, currentStudent,
   };
 })();

@@ -1,6 +1,6 @@
 /* =========================================================================
    Store — reads the mock data (data.js) and keeps the user's own data in
-   localStorage: active filters, user-added spots, and deleted sample spots.
+   localStorage: active filters and (when the database is off) added spots.
    Favorites and spots added on the Add a Spot page are saved in Supabase
    (db.js) for the student who is logged in; logged-out visitors are asked
    to log in to save them. If Supabase is off or can't be reached, new spots
@@ -28,13 +28,11 @@ const Store = (() => {
 
   /* ---------------- Spots ---------------- */
   function userSpots() { return read('userSpots', []); }
-  function deletedIds() { return read('deletedSampleIds', []); }
 
   function allSpots() {
-    const hidden = new Set(deletedIds());
-    return SPOTS.filter((s) => !hidden.has(s.id))
-      .concat(shared.spots.filter((s) => !hidden.has(s.id)).map((s) => ({ ...s, isUserSpot: true })))
-      .concat(userSpots().map((s) => ({ ...s, isUserSpot: true })));
+    return SPOTS
+      .concat(shared.spots.map((s) => ({ ...s, isUserSpot: true })))
+      .concat(userSpots().map((s) => ({ ...s, isUserSpot: true, isLocalSpot: true })));
   }
   function getSpot(id) { return allSpots().find((s) => s.id === id) || null; }
 
@@ -55,30 +53,37 @@ const Store = (() => {
     return { ...saved, isUserSpot: true };
   }
 
-  /** True for a database spot the logged-in student added (only they can delete it). */
-  function isOwnSpot(spot) { return !!(spot && shared.me && spot.dbId != null && spot.submittedBy === shared.me.user_id); }
-
   /**
-   * Delete a spot. Your own database spots are deleted for everyone; sample
-   * spots and teammates' spots are hidden on this device. Returns a promise
-   * that rejects (and undoes) if Supabase refused.
+   * True when the person looking can delete this spot: a database spot the
+   * logged-in student added, or a spot saved only on this device. Sample spots
+   * and other students' spots can't be deleted.
    */
+  function isOwnSpot(spot) {
+    if (!spot) return false;
+    if (spot.isLocalSpot) return true;
+    return !!(shared.me && spot.dbId != null && spot.submittedBy === shared.me.user_id);
+  }
+
+  /** Delete one of your own spots. Returns a promise that rejects (and undoes) if Supabase refused. */
   function deleteSpot(id) {
+    const spot = getSpot(id);
+    if (!isOwnSpot(spot)) return Promise.reject(new Error('You can only delete spots you added.'));
     const fromDb = shared.spots.find((s) => s.id === id);
-    if (fromDb && isOwnSpot(fromDb)) {
+    if (fromDb) {
       const before = shared.spots;
       shared.spots = before.filter((s) => s.id !== id);
-        return DB.deleteSpot(fromDb.dbId).catch((e) => { shared.spots = before; throw e; });
+      return DB.deleteSpot(fromDb.dbId).catch((e) => { shared.spots = before; throw e; });
     }
-    if (userSpots().some((s) => s.id === id)) {
-      write('userSpots', userSpots().filter((s) => s.id !== id));
-    } else {
-      write('deletedSampleIds', Array.from(new Set(deletedIds().concat(id))));
-    }
+    write('userSpots', userSpots().filter((s) => s.id !== id));
     write('favorites', localFavorites().filter((f) => f !== id));
     return Promise.resolve();
   }
-  function restoreSampleSpots() { write('deletedSampleIds', []); }
+
+  /** A random spot from the list given (all spots by default), or null. */
+  function randomSpot(list) {
+    const pool = list && list.length ? list : allSpots();
+    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  }
 
   /* ---------------- Shared favorites (Supabase) ---------------- */
   // status: 'off' (no Supabase key), 'loading', 'ok', or 'error'
@@ -103,7 +108,11 @@ const Store = (() => {
       const inDataJs = new Set(SPOTS.map((s) => s.dbId));
       // If spots can't load, keep favorites and login working.
       const spots = DB.studentSpots().catch((e) => { console.error('Could not load added spots from Supabase', e); return []; });
-      const [me, loaded] = await Promise.all([DB.currentStudent(), spots]);
+      // Building ids for buildings added after the first six (matched by building code).
+      const buildings = (DB.buildings ? DB.buildings() : Promise.resolve([]))
+        .catch((e) => { console.error('Could not load buildings from Supabase', e); return []; });
+      const [me, loaded, rows] = await Promise.all([DB.currentStudent(), spots, buildings]);
+      rows.forEach((r) => { const b = BUILDINGS.find((x) => x.short === r.building_code); if (b) b.dbId = r.building_id; });
       shared.spots = loaded.filter((s) => !inDataJs.has(s.dbId) && s.building);
       shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
       shared.me = me;
@@ -153,17 +162,21 @@ const Store = (() => {
   }
 
   /* ---------------- Filters ---------------- */
+  /* Filters: { features: { quietZone, ... wifi ... }, setting: '' | 'indoors' | 'outdoors', building, groupSize } */
   function emptyFilters() {
     const features = {};
-    FEATURES.forEach((f) => { features[f.key] = false; });
-    return { features, indoors: false, building: '', groupSize: '' };
+    FILTER_FEATURES.forEach((f) => { features[f.key] = false; });
+    return { features, setting: '', building: '', groupSize: '' };
   }
   function normalize(f) {
     const base = emptyFilters();
     if (!f) return base;
-    FEATURES.forEach((x) => { base.features[x.key] = !!(f.features && f.features[x.key]); });
-    base.indoors = !!f.indoors;
-    base.building = f.building || '';
+    FILTER_FEATURES.forEach((x) => { base.features[x.key] = !!(f.features && f.features[x.key]); });
+    // Older saved filters used an Outdoors checkbox and a separate Indoors flag.
+    const oldOut = !!(f.features && f.features.outdoors), oldIn = !!f.indoors;
+    const setting = f.setting || (oldOut && !oldIn ? 'outdoors' : oldIn && !oldOut ? 'indoors' : '');
+    base.setting = SETTINGS.some((x) => x.key === setting) ? setting : '';
+    base.building = BUILDINGS.some((b) => b.id === f.building) ? f.building : '';
     base.groupSize = f.groupSize || '';
     return base;
   }
@@ -173,14 +186,11 @@ const Store = (() => {
 
   function matches(spot, f) {
     f = normalize(f);
-    for (const x of FEATURES) {
-      if (x.key === 'outdoors') continue;
+    for (const x of FILTER_FEATURES) {
       if (f.features[x.key] && !spot.features[x.key]) return false;
     }
-    // Outdoors and Indoors: if both are picked, either one is fine.
-    const out = f.features.outdoors, ind = f.indoors;
-    if (out && !ind && !spot.features.outdoors) return false;
-    if (ind && !out && spot.features.outdoors) return false;
+    if (f.setting === 'outdoors' && !spot.features.outdoors) return false;
+    if (f.setting === 'indoors' && spot.features.outdoors) return false;
     if (f.building && spot.building !== f.building) return false;
     if (f.groupSize && spot.groupSize !== f.groupSize) return false;
     return true;
@@ -192,8 +202,8 @@ const Store = (() => {
     f = normalize(f);
     const items = [];
     if (f.groupSize) items.push({ key: 'groupSize', label: GROUP_SIZES.find((g) => g.key === f.groupSize).label, group: true });
-    FEATURES.forEach((x) => { if (f.features[x.key]) items.push({ key: x.key, label: x.label }); });
-    if (f.indoors) items.push({ key: 'indoors', label: 'Indoors' });
+    if (f.setting) items.push({ key: 'setting', label: SETTINGS.find((x) => x.key === f.setting).label });
+    FILTER_FEATURES.forEach((x) => { if (f.features[x.key]) items.push({ key: x.key, label: x.label }); });
     if (f.building) {
       const b = BUILDINGS.find((b) => b.id === f.building);
       items.push({ key: 'building', label: b ? b.short : f.building });
@@ -205,7 +215,7 @@ const Store = (() => {
     f = normalize(f);
     if (key === 'groupSize') f.groupSize = '';
     else if (key === 'building') f.building = '';
-    else if (key === 'indoors') f.indoors = false;
+    else if (key === 'setting') f.setting = '';
     else f.features[key] = false;
     return f;
   }
@@ -216,7 +226,7 @@ const Store = (() => {
   function setPref(key, value) { write('pref.' + key, value); }
 
   return {
-    allSpots, getSpot, addUserSpot, deleteSpot, isOwnSpot, restoreSampleSpots, deletedIds,
+    allSpots, getSpot, addUserSpot, deleteSpot, isOwnSpot, randomSpot,
     sharedStatus, currentStudent, needsLogin, loadShared,
     favorites, isFav, toggleFav,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,
