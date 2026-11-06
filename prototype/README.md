@@ -89,10 +89,12 @@ block external requests, so no real accounts or favorites are changed.
 ## Campus overview map
 
 `js/campus-map.js` defines the north-up exterior footprints, label/badge anchors,
-and SVG landscape in one 900 × 850 illustration coordinate system. The overview
+and broad gray/green land-use areas in one 900 × 850 illustration coordinate system. The overview
 follows the supplied BYU campus-map screenshots: library and WSC in the center,
 Tanner/Talmage/JKB to the northwest, the science buildings to the south, and lawns,
-walkways, roads, fields, and muted nearby landmarks for orientation. It is an
+open campus spaces, fields, and muted nearby landmarks for orientation.
+White pedestrian lines, tree symbols, parking stripes, and decorative details are
+intentionally omitted so the building outlines and their relative positions lead. It is an
 approximate illustration rather than surveyed geometry or a live navigation map.
 It uses local vectors and has no map API, tile server, API key, or network dependency.
 

@@ -35,11 +35,11 @@ with sync_playwright() as p:
   page.wait_for_url('**/#building-'+building_id)
  page.evaluate("App.go('map')");page.wait_for_selector('.campus-map')
  page.emulate_media(color_scheme='dark')
- assert page.locator('.map-ground').evaluate('(e)=>getComputedStyle(e).fill')=='rgb(28, 44, 41)'
+ assert page.locator('.map-ground').evaluate('(e)=>getComputedStyle(e).fill')=='rgb(41, 54, 56)'
  page.evaluate("document.documentElement.dataset.theme='light'")
- assert page.locator('.map-ground').evaluate('(e)=>getComputedStyle(e).fill')=='rgb(237, 242, 235)'
+ assert page.locator('.map-ground').evaluate('(e)=>getComputedStyle(e).fill')=='rgb(210, 215, 213)'
  page.evaluate("document.documentElement.dataset.theme='dark'")
- assert page.locator('.map-ground').evaluate('(e)=>getComputedStyle(e).fill')=='rgb(28, 44, 41)'
+ assert page.locator('.map-ground').evaluate('(e)=>getComputedStyle(e).fill')=='rgb(41, 54, 56)'
  assert not errors,errors
  print('PASS: 17 path footprints, mouse/keyboard building navigation, selected spot, filters, mobile centering/overflow, dark mode; no uncaught errors')
  b.close()
