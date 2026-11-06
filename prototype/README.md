@@ -11,7 +11,7 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | `index.html` | The single page shell. Loads the CSS and scripts. |
 | `css/styles.css` | All styles. Colors are tokens at the top (primary navy, accent gold) with a dark-mode set. |
 | `js/supabase-config.js` | The Supabase project URL and publishable key. |
-| `js/data.js` | **The one mock data file.** 17 buildings (with real campus coordinates for the map), the filter options, and 26 study spots. Each spot's `dbId` is its `study_spot_id` in Supabase. |
+| `js/data.js` | **The one mock data file.** 20 selectable buildings (with reference-based campus-map outlines), the filter options, and 26 study spots. Each spot's `dbId` is its `study_spot_id` in Supabase. |
 | `js/db.js` | The only file that talks to Supabase: loads/adds/removes favorites, loads/adds/deletes student-added spots, and sign-up / log-in. |
 | `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (active filters, and added spots when the database is off). Also holds the filter-matching logic. |
 | `js/components.js` | Reusable pieces: top bar + ☰ menu + account dropdown, page header, no-results message, chips, spot card, busyness badge, group-size and indoors/outdoors pickers, floor plan, Filter Panel, Spot Details, toast. |
@@ -98,7 +98,7 @@ intentionally omitted so the building outlines and their relative positions lead
 approximate illustration rather than surveyed geometry or a live navigation map.
 It uses local vectors and has no map API, tile server, API key, or network dependency.
 
-The 17 existing building IDs still drive spot counts, filter highlighting, the
+The 20 building IDs still drive spot counts, filter highlighting, the
 building directory, and links into the existing floor views. Background landmarks
 are noninteractive orientation aids; their study spots/floors are not added here.
 Floor plans remain unchanged and should be developed separately. When adding a
@@ -109,7 +109,7 @@ building. Keyboard users can focus buildings and activate them with Enter or Spa
 
 With the prototype served on port 8000, run `python3 prototype/tests/map_flow.py`
 from the repository root (Python Playwright + Chromium; `CHROMIUM_PATH` and
-`TEST_BASE_URL` are supported). It checks exterior paths, all 17 keyboard links,
+`TEST_BASE_URL` are supported). It checks exterior paths, all building keyboard links,
 mouse navigation, selected-spot highlighting, filters, mobile overflow/centering,
 and explicit/automatic dark mode. External requests are blocked during testing.
 
@@ -128,5 +128,25 @@ spots. Pins originally placed on generic rectangular plans may need to be repinn
 when individual floors are refined.
 
 Run `python3 prototype/tests/floor_flow.py` with the local server running to verify
-all 17 outlines, aspect ratios, coordinate round trips, exterior/courtyard rejection,
+all building outlines, aspect ratios, coordinate round trips, exterior/courtyard rejection,
 and responsive layout. The existing UI flow test also exercises Add a Spot.
+
+
+## Empty buildings and initial real-data entry
+
+ARTS, LSB, and EB are now selectable buildings rather than background landmarks.
+CB and MARB remain selectable. All building views show their configured floors,
+even when no study spots exist. Their empty outlines have an Add a Spot link that
+preserves the selected building and floor. Initial new floor lists are ARTS 1–4,
+LSB 1–5, and EB 1–5; these are starter configuration, not verified floor surveys.
+CB keeps 1–4 and MARB keeps 1–3. Adjust `BUILDINGS[].floors` as references arrive.
+
+Before shared database writes for ARTS/LSB/EB, the database owner must apply
+`supabase/migrations/20261107010000_add_arts_lsb_engineering.sql` in Supabase's SQL
+Editor (or through the team's migration workflow), then reload the app. It adds
+only building rows, is safe to rerun, and creates no fake study spots. The client
+resolves assigned IDs by building code. CB/MARB use the existing building migration.
+Saving code to GitHub does not apply this SQL to the hosted database. No database
+administration credentials are available in this workspace, so hosted writes for
+the new buildings have not been verified. Local pin creation/reload is covered by
+`python3 prototype/tests/empty_buildings.py`.

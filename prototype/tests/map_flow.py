@@ -11,7 +11,7 @@ with sync_playwright() as p:
  page.route('https://**/*',lambda r:r.abort())
  page.goto(BASE_URL + '/#map',wait_until='networkidle')
  page.wait_for_selector('.campus-map')
- assert page.locator('.campus-map [data-building]').count()==17
+ assert page.locator('.campus-map [data-building]').count()==page.evaluate('BUILDINGS.length')
  assert page.locator('.bldg-shape:not(path)').count()==0
  page.set_viewport_size({'width':390,'height':844});page.reload(wait_until='networkidle')
  assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
@@ -41,5 +41,5 @@ with sync_playwright() as p:
  page.evaluate("document.documentElement.dataset.theme='dark'")
  assert page.locator('.map-ground').evaluate('(e)=>getComputedStyle(e).fill')=='rgb(41, 54, 56)'
  assert not errors,errors
- print('PASS: 17 path footprints, mouse/keyboard building navigation, selected spot, filters, mobile centering/overflow, dark mode; no uncaught errors')
+ print('PASS: all building footprints, mouse/keyboard building navigation, selected spot, filters, mobile centering/overflow, dark mode; no uncaught errors')
  b.close()

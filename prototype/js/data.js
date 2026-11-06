@@ -68,6 +68,10 @@ const SETTINGS = [
    floors   floors with study space. For the newer buildings these are estimates;
             correct them if you know better. */
 const BUILDINGS = [
+  // Initial floor lists for these new buildings; refine when floor references arrive.
+  { id: 'arts', name: 'Arts Building', short: 'ARTS', floors: [1, 2, 3, 4] },
+  { id: 'lsb', name: 'Life Sciences Building', short: 'LSB', floors: [1, 2, 3, 4, 5] },
+  { id: 'eb', name: 'Engineering Building', short: 'EB', floors: [1, 2, 3, 4, 5] },
   { id: 'hbll', dbId: 1, name: 'Harold B. Lee Library',            short: 'HBLL', floors: [1, 2, 3, 4, 5],    lat: 40.248630, lng: -111.649260, size: [104, 86] },
   { id: 'wsc',  dbId: 2, name: 'Wilkinson Student Center',         short: 'WSC',  floors: [1, 2, 3],          lat: 40.248609, lng: -111.647124, size: [108, 84] },
   { id: 'jfsb', dbId: 3, name: 'Joseph F. Smith Building',         short: 'JFSB', floors: [1, 2, 3, 4],       lat: 40.248371, lng: -111.651633, size: [104, 70] },

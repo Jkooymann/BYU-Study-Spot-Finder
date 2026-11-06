@@ -158,12 +158,8 @@ Pages.building = (buildingId, floorArg) => {
   const f = Store.getFilters();
   const active = Store.isActive(f);
   const spots = Store.allSpots().filter((s) => s.building === b.id);
-  const floors = Array.from(new Set(spots.map((s) => s.floor))).sort((a, b) => a - b);
-  if (!floors.length) {
-    return `<section class="page">
-      ${pageHeader({ back: `<a href="#map" class="back-link">${icon('back')}Back to map</a>`, eyebrow: b.short, title: esc(b.name), sub: 'No study spots here yet.' })}
-      <div class="empty"><span class="empty-ic">${icon('plus')}</span><p class="empty-title">Know a good spot in the ${esc(b.short)}?</p><p>Add it so other students can find it.</p><div class="empty-actions"><a class="btn btn-primary" href="#add-${b.id}">${icon('plus')}Add a spot here</a></div></div></section>`;
-  }
+  // Floor navigation exists before study spots are added, including empty levels.
+  const floors = Array.from(new Set([...b.floors, ...spots.map(s => s.floor)])).sort((a, b) => a - b);
   let floor = Number(floorArg);
   if (!floors.includes(floor)) {
     // Default to the first floor with a match, else the lowest floor.
@@ -176,7 +172,7 @@ Pages.building = (buildingId, floorArg) => {
   return `<section class="page">
     ${pageHeader({ back: `<a href="#map" class="back-link">${icon('back')}Back to map</a>`, eyebrow: b.short, title: esc(b.name), sub: `${plural(spots.length, 'study spot')} on ${plural(floors.length, 'floor')}` })}
     ${toolbar()}
-    ${anyMatch ? '' : noResults({ title: `No spots in the ${esc(b.short)} match your filters` })}
+    ${active && spots.length && !anyMatch ? noResults({ title: `No spots in the ${esc(b.short)} match your filters` }) : ''}
     <div class="floor-tabs" role="tablist" aria-label="Floors">
       ${floors.map((fl) => {
         const m = spots.filter((s) => s.floor === fl && (!active || Store.matches(s, f))).length;
@@ -189,10 +185,11 @@ Pages.building = (buildingId, floorArg) => {
       ${floorPlanSvg(b.id, floor, items)}
       <p class="map-legend" id="campus-map-help">${active
         ? `<span class="legend-dot legend-match"></span>Glowing = matches your filters (${matchCount}) <span class="legend-dot legend-dim"></span>Gray = doesn't match`
-        : '<span class="legend-dot legend-match"></span>Tap a glowing marker to see the spot'}</p>
+        : items.length ? '<span class="legend-dot legend-match"></span>Tap a glowing marker to see the spot' : 'No study spots pinned on this floor yet.'}</p>
     </div>
     <h2 class="section-h">Spots on floor ${floor}</h2>
-    <div class="spot-list">${items.map((i) => spotCard(i.spot, { num: i.num, dim: !i.match })).join('')}</div>
+    <div class="spot-list">${items.length ? items.map((i) => spotCard(i.spot, { num: i.num, dim: !i.match })).join('') : '<p class="fact-note">Be the first to add a study spot on this floor.</p>'}</div>
+    <a class="btn btn-primary" href="#add-${b.id}-f${floor}">${icon('plus')}Add a spot on floor ${floor}</a>
   </section>`;
 };
 
