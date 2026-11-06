@@ -148,3 +148,11 @@ select setval(pg_get_serial_sequence('public.study_spot',   'study_spot_id'),   
 select setval(pg_get_serial_sequence('public.amenity',      'amenity_id'),      (select max(amenity_id)      from public.amenity));
 select setval(pg_get_serial_sequence('public.spot_rating',  'spot_rating_id'),  (select max(spot_rating_id)  from public.spot_rating));
 select setval(pg_get_serial_sequence('public.saved_filter', 'saved_filter_id'), (select max(saved_filter_id) from public.saved_filter));
+
+-- Buildings added for real-data entry (no fabricated study spots).
+insert into public.building (building_code, building_name, floor_count)
+values
+  ('ARTS', 'Arts Building', 4),
+  ('LSB', 'Life Sciences Building', 5),
+  ('EB', 'Engineering Building', 5)
+on conflict (building_code) do nothing;

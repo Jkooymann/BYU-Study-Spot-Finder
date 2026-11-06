@@ -39,5 +39,5 @@ with sync_playwright() as p:
  page.set_viewport_size({'width':390,'height':844})
  assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
  assert not errors,errors
- print('PASS: all 17 shared outlines, aspect ratios, pin coordinate round trips, outside/courtyard rejection, blank interiors, responsive layout; no browser errors')
+ print('PASS: all shared outlines, aspect ratios, pin coordinate round trips, outside/courtyard rejection, blank interiors, responsive layout; no browser errors')
  b.close()

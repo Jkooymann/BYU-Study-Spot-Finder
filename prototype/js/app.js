@@ -35,8 +35,12 @@ const App = {
     if (AccountPages.isPublic(h) && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
     // #add-<building>: open Add a Spot with that building already chosen.
     if (h.startsWith('add-')) {
-      const b = buildingById(h.slice(4));
-      if (b && AddState.building !== b.id) { AddState.building = b.id; AddState.floor = b.floors[0]; AddState.pin = null; }
+      const [buildingId, requestedFloor] = h.slice(4).split('-f');
+      const b = buildingById(buildingId);
+      if (b) {
+        const floor = b.floors.includes(Number(requestedFloor)) ? Number(requestedFloor) : b.floors[0];
+        if (AddState.building !== b.id || requestedFloor) { AddState.building = b.id; AddState.floor = floor; AddState.pin = null; }
+      }
       h = 'add'; history.replaceState(null, '', '#add');
     }
     setHomeMenu(false);
