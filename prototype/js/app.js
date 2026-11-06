@@ -372,7 +372,7 @@ document.addEventListener('submit', async (e) => {
   if (!Store.matches({ ...saved }, Store.getFilters())) Store.clearFilters();
   App.flashId = saved.id;
   AddState.reset();
-  toast(Store.sharedStatus() === 'ok' ? `Added “${saved.name}” for your whole team` : `Added “${saved.name}” on this device`);
+  toast(Store.sharedStatus() === 'ok' ? `Added “${saved.name}” to your list` : `Added “${saved.name}” on this device`);
   App.go('list');
 });
 
