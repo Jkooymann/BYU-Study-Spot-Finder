@@ -112,3 +112,21 @@ from the repository root (Python Playwright + Chromium; `CHROMIUM_PATH` and
 `TEST_BASE_URL` are supported). It checks exterior paths, all 17 keyboard links,
 mouse navigation, selected-spot highlighting, filters, mobile overflow/centering,
 and explicit/automatic dark mode. External requests are blocked during testing.
+
+## First-pass floor outlines
+
+Floor views and Add a Spot now reuse `CAMPUS_FOOTPRINTS` without stretching the
+building proportions. Every floor currently shares its building's exterior outline;
+there are no generated rooms, stairs, or corridors. Floor-specific outlines can
+replace these later. JFSB's courtyard remains a hole in the outline.
+
+Pins use percentages of the silhouette's bounding box, with the same north-up
+orientation in the picker and floor viewer. Screen clicks are transformed through
+the SVG matrices; clicks outside the silhouette or inside courtyards are rejected.
+Existing saved/sample percentages are preserved rather than relocating people's
+spots. Pins originally placed on generic rectangular plans may need to be repinned
+when individual floors are refined.
+
+Run `python3 prototype/tests/floor_flow.py` with the local server running to verify
+all 17 outlines, aspect ratios, coordinate round trips, exterior/courtyard rejection,
+and responsive layout. The existing UI flow test also exercises Add a Spot.
