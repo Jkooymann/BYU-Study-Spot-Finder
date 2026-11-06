@@ -25,46 +25,46 @@ values
 on conflict do nothing;
 
 insert into public.study_spot
-  (study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number, location_description,
-   is_indoors, seat_count, max_group_size, noise_level, typical_busyness_level,
+  (study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number,
+   is_indoors, max_group_size, noise_level, typical_busyness_level,
    floor_plan_x_percent, floor_plan_y_percent, is_sample_spot)
 values
-  (1, 1, null, 'Main Floor Group Tables', 1, 'North reading area',     true,  40, 6, 'Moderate', 'High',     22, 25, true),
-  (2, 1, null, 'Group Study Rooms',       1, 'Rooms 1100–1130',        true,  60, 8, 'Moderate', 'High',     70, 78, true),
-  (3, 1, null, 'West Window Carrels',     2, 'West wall',              true,  24, 1, 'Quiet',    'Moderate', 10, 60, true),
-  (4, 1, null, 'Silent Reading Room',     3, 'Room 3300',              true,  50, 1, 'Silent',   'Moderate', 55, 22, true),
-  (5, 2, null, 'Cougareat Tables',        1, 'Food court',             true, 200, 8, 'Loud',     'High',     40, 30, true),
-  (6, 2, null, 'Garden Court',            2, 'Garden Court',           true,  30, 4, 'Moderate', 'Moderate', 60, 70, true),
-  (7, 2, null, 'East Terrace',            1, 'East doors patio',       false, 20, 6, 'Moderate', 'Low',      92, 55, true),
-  (8, 3, null, 'Courtyard Benches',       1, 'Center courtyard',       false, 16, 4, 'Quiet',    'Low',      50, 50, true),
-  (9, 3, 2,    'Atrium Tables',           2, 'Main atrium',            true,  32, 4, 'Moderate', 'Moderate', 35, 30, false),
-  (10, 4, 1,   'Business Lounge',         3, 'Third floor east lounge', true, 18, 4, 'Quiet',    'Moderate', 70, 40, false),
-  (11, 5, 3,   'CS Lab Couches',          1, 'Outside the open lab',   true,  12, 3, 'Moderate', 'High',     30, 65, false)
+  (1, 1, null, 'Main Floor Group Tables', 1, true, 6, 'Moderate', 'High',     22, 25, true),
+  (2, 1, null, 'Group Study Rooms',       1, true, 8, 'Moderate', 'High',     70, 78, true),
+  (3, 1, null, 'West Window Carrels',     2, true, 1, 'Quiet',    'Moderate', 10, 60, true),
+  (4, 1, null, 'Silent Reading Room',     3, true, 1, 'Silent',   'Moderate', 55, 22, true),
+  (5, 2, null, 'Cougareat Tables',        1, true, 8, 'Loud',     'High',     40, 30, true),
+  (6, 2, null, 'Garden Court',            2, true, 4, 'Moderate', 'Moderate', 60, 70, true),
+  (7, 2, null, 'East Terrace',            1, false, 6, 'Moderate', 'Low',      92, 55, true),
+  (8, 3, null, 'Courtyard Benches',       1, false, 4, 'Quiet',    'Low',      50, 50, true),
+  (9, 3, 2,    'Atrium Tables',           2, true, 4, 'Moderate', 'Moderate', 35, 30, false),
+  (10, 4, 1,   'Business Lounge',         3, true, 4, 'Quiet',    'Moderate', 70, 40, false),
+  (11, 5, 3,   'CS Lab Couches',          1, true, 3, 'Moderate', 'High',     30, 65, false)
 on conflict do nothing;
 
 -- The rest of the prototype's sample spots (prototype/js/data.js), so every
 -- spot on the website has a matching row and can be saved as a favorite.
 -- The id of each row is the spot's dbId in data.js.
 insert into public.study_spot
-  (study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number, location_description,
-   is_indoors, seat_count, max_group_size, noise_level, typical_busyness_level,
+  (study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number,
+   is_indoors, max_group_size, noise_level, typical_busyness_level,
    floor_plan_x_percent, floor_plan_y_percent, is_sample_spot)
 values
-  (12, 1, null, 'Atrium Lounge Chairs', 4, 'Atrium overlook', true, 24, 4, 'Moderate', 'Moderate', 45, 72, true),
-  (13, 1, null, 'Top Floor Study Nook', 5, 'Southeast corner', true, 12, 1, 'Quiet', 'Low', 85, 80, true),
-  (14, 2, null, 'Ballroom Hallway Lounge', 3, 'Outside the Ballroom', true, 24, 4, 'Moderate', 'Low', 25, 50, true),
-  (15, 3, null, 'Third-Floor Window Seats', 3, 'North windows', true, 12, 1, 'Quiet', 'Low', 78, 18, true),
-  (16, 3, null, 'Fourth-Floor Study Corner', 4, 'Near Room 4010', true, 24, 4, 'Quiet', 'Low', 15, 82, true),
-  (17, 4, null, 'Tanner Atrium Tables', 1, 'Atrium', true, 60, 8, 'Moderate', 'High', 50, 40, true),
-  (18, 4, null, 'Business Group Rooms', 3, 'Rooms 310–330', true, 24, 4, 'Moderate', 'Moderate', 80, 25, true),
-  (19, 4, null, 'Fifth-Floor Quiet Lounge', 5, 'West lounge', true, 12, 1, 'Quiet', 'Low', 20, 70, true),
-  (20, 4, null, 'Tanner Front Patio', 1, 'South entrance', false, 24, 4, 'Moderate', 'Low', 50, 92, true),
-  (21, 5, null, 'CS Lab Commons', 1, 'Open lab area', true, 24, 4, 'Moderate', 'High', 30, 30, true),
-  (22, 5, null, 'Hallway Booths', 2, 'East hallway', true, 24, 4, 'Moderate', 'Moderate', 75, 50, true),
-  (23, 5, null, 'Stairwell Quiet Tables', 3, 'By the north stairs', true, 12, 1, 'Quiet', 'Low', 12, 20, true),
-  (24, 6, null, 'ESC Lobby Tables', 1, 'Main lobby', true, 60, 8, 'Moderate', 'Moderate', 50, 50, true),
-  (25, 6, null, 'Physics Tutoring Lab', 2, 'Room W166', true, 24, 4, 'Moderate', 'High', 25, 75, true),
-  (26, 6, null, 'Upper Hallway Desks', 3, 'South hallway', true, 12, 1, 'Quiet', 'Low', 70, 82, true)
+  (12, 1, null, 'Atrium Lounge Chairs', 4, true, 4, 'Moderate', 'Moderate', 45, 72, true),
+  (13, 1, null, 'Top Floor Study Nook', 5, true, 1, 'Quiet', 'Low', 85, 80, true),
+  (14, 2, null, 'Ballroom Hallway Lounge', 3, true, 4, 'Moderate', 'Low', 25, 50, true),
+  (15, 3, null, 'Third-Floor Window Seats', 3, true, 1, 'Quiet', 'Low', 78, 18, true),
+  (16, 3, null, 'Fourth-Floor Study Corner', 4, true, 4, 'Quiet', 'Low', 15, 82, true),
+  (17, 4, null, 'Tanner Atrium Tables', 1, true, 8, 'Moderate', 'High', 50, 40, true),
+  (18, 4, null, 'Business Group Rooms', 3, true, 4, 'Moderate', 'Moderate', 80, 25, true),
+  (19, 4, null, 'Fifth-Floor Quiet Lounge', 5, true, 1, 'Quiet', 'Low', 20, 70, true),
+  (20, 4, null, 'Tanner Front Patio', 1, false, 4, 'Moderate', 'Low', 50, 92, true),
+  (21, 5, null, 'CS Lab Commons', 1, true, 4, 'Moderate', 'High', 30, 30, true),
+  (22, 5, null, 'Hallway Booths', 2, true, 4, 'Moderate', 'Moderate', 75, 50, true),
+  (23, 5, null, 'Stairwell Quiet Tables', 3, true, 1, 'Quiet', 'Low', 12, 20, true),
+  (24, 6, null, 'ESC Lobby Tables', 1, true, 8, 'Moderate', 'Moderate', 50, 50, true),
+  (25, 6, null, 'Physics Tutoring Lab', 2, true, 4, 'Moderate', 'High', 25, 75, true),
+  (26, 6, null, 'Upper Hallway Desks', 3, true, 1, 'Quiet', 'Low', 70, 82, true)
 on conflict do nothing;
 
 insert into public.amenity

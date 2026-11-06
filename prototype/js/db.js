@@ -46,8 +46,8 @@ const DB = (() => {
   // student_user!submitted_by_user_id names which link to follow: study_spot and
   // student_user are also linked through favorite_spot and spot_rating, and a
   // plain student_user(...) makes Supabase refuse with "more than one relationship".
-  const SPOT_COLUMNS = 'study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number, location_description, '
-    + 'description, is_indoors, max_group_size, typical_busyness_level, floor_plan_x_percent, floor_plan_y_percent, '
+  const SPOT_COLUMNS = 'study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number, description, '
+    + 'is_indoors, max_group_size, typical_busyness_level, floor_plan_x_percent, floor_plan_y_percent, '
     + 'study_spot_amenity(amenity_id), submitter:student_user!submitted_by_user_id(display_name)';
 
   /** Turn a study_spot row into the spot shape the site uses (see data.js). */
@@ -64,7 +64,7 @@ const DB = (() => {
       name: row.spot_name,
       building: b ? b.id : '',
       floor: row.floor_number,
-      room: row.location_description || '',
+      room: '',
       position: { x: Number(row.floor_plan_x_percent), y: Number(row.floor_plan_y_percent) },
       features,
       groupSize: max <= 1 ? 'solo' : max <= 4 ? 'small group' : 'big group',
@@ -103,7 +103,6 @@ const DB = (() => {
       submitted_by_user_id: userId,
       spot_name: spot.name,
       floor_number: spot.floor,
-      location_description: spot.room || null,
       description: spot.description || null,
       is_indoors: !f.outdoors,
       max_group_size: GROUP_TO_MAX[spot.groupSize] || 1,

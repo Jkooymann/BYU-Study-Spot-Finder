@@ -264,6 +264,8 @@ document.addEventListener('click', (e) => {
   if (fl) { AddState.floor = Number(fl.dataset.addFloor); AddState.pin = null; App.refresh(); $(`[data-add-floor="${fl.dataset.addFloor}"]`).focus(); return; }
   const ag = t.closest('[data-add-group]');
   if (ag) { AddState.groupSize = ag.dataset.addGroup; App.refresh(); $(`[data-add-group="${ag.dataset.addGroup}"]`).focus(); return; }
+  const ab = t.closest('[data-add-busy]');
+  if (ab) { AddState.busyness = ab.dataset.addBusy; App.refresh(); $(`[data-add-busy="${ab.dataset.addBusy}"]`).focus(); return; }
   const st = t.closest('[data-add-setting]');
   if (st) { AddState.setting = st.dataset.addSetting; App.refresh(); $(`[data-add-setting="${st.dataset.addSetting}"]`).focus(); return; }
   const tag = t.closest('[data-add-tag]');
@@ -356,7 +358,7 @@ document.addEventListener('submit', async (e) => {
   try {
     saved = await Store.addUserSpot({
       name: s.name.trim(), building: s.building, floor: s.floor, room: '', position: s.pin,
-      features, groupSize: s.groupSize, busyness: 'Moderate', description: s.description.trim(),
+      features, groupSize: s.groupSize, busyness: s.busyness, description: s.description.trim(),
     });
   } catch (err) {
     console.error('Could not save spot', err);

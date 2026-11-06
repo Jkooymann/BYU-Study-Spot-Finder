@@ -223,6 +223,17 @@ function groupSizePicker(current, attr = 'data-quick-group', withAny = true) {
   </div>`;
 }
 
+/* Busyness — same layout as the group size picker, tinted with the spot list's badge colors */
+function busynessPicker(current, attr) {
+  return `<div class="group-picker busy-picker" role="radiogroup" aria-label="How busy it usually is">
+    ${BUSYNESS.map((level, i) => {
+      const cls = ['empty', 'moderate', 'busy'][i];
+      return `<button type="button" role="radio" aria-checked="${current === level}" class="group-opt busy-opt busy-${cls}${current === level ? ' is-on' : ''}" ${attr}="${level}">
+      <span class="busy-bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="group-opt-label">${level}</span><span class="group-opt-hint">${BUSYNESS_HINTS[level]}</span></button>`;
+    }).join('')}
+  </div>`;
+}
+
 /* Indoors / Outdoors: one choice instead of two separate checkboxes */
 function settingPicker(current, attr, withAny = true) {
   return `<div class="seg" role="radiogroup" aria-label="Indoors or outdoors">

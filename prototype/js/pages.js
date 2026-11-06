@@ -295,7 +295,7 @@ function addSpotNote() {
 }
 const AddState = {
   reset() {
-    Object.assign(this, { name: '', building: '', floor: null, pin: null, groupSize: 'solo', setting: 'indoors', tags: {}, description: '', errors: {}, submitted: false, saving: false });
+    Object.assign(this, { name: '', building: '', floor: null, pin: null, groupSize: 'solo', busyness: 'Moderate', setting: 'indoors', tags: {}, description: '', errors: {}, submitted: false, saving: false });
   },
 };
 AddState.reset();
@@ -340,6 +340,11 @@ Pages.add = () => {
       <div class="field">
         <span class="label">Group size</span>
         ${groupSizePicker(s.groupSize, 'data-add-group', false)}
+      </div>
+
+      <div class="field">
+        <span class="label">How busy it usually is</span>
+        ${busynessPicker(s.busyness, 'data-add-busy')}
       </div>
 
       <div class="field">
