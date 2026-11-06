@@ -92,7 +92,7 @@ const DB = (() => {
     const f = spot.features;
     const building = buildingById(spot.building);
     if (!building || building.dbId == null) {
-      throw new Error(`${building ? building.short : 'This building'} isn't in the database yet. Apply the add_more_buildings migration in Supabase.`);
+      throw new Error(`${building ? building.short : 'This building'} isn't in the database yet. Apply the fix_add_spot migration in Supabase.`);
     }
     const noise = f.quietZone && !f.talkingAllowed ? 'Quiet' : f.talkingAllowed && !f.quietZone ? 'Moderate' : null;
     const { data, error } = await client.from('study_spot').insert({

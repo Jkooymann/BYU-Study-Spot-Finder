@@ -310,6 +310,27 @@ document.addEventListener('input', (e) => {
 });
 
 /* ---------------- Add a Spot submit ---------------- */
+/** Plain-words reason a spot didn't save, so the toast says what to fix
+    instead of always blaming the connection. Full details go to the console. */
+function spotSaveError(err) {
+  const msg = String((err && err.message) || err || '');
+  const code = err && err.code;
+  const fix = 'Run supabase/migrations/20261106060000_fix_add_spot.sql in the Supabase SQL Editor.';
+  if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+    return 'Could not reach the database. Check your connection and try again.';
+  }
+  if (/isn't in the database yet/.test(msg)) return `Could not save your spot: ${msg.replace(/ Apply .*$/, '')} ${fix}`;
+  if (code === '42501' || /row-level security|permission denied/i.test(msg)) {
+    return `Could not save your spot: the database doesn't allow it yet. ${fix}`;
+  }
+  if (code === 'PGRST204' || code === '42703' || code === '23503' || code === '42883') {
+    return `Could not save your spot: the database is missing a part this page needs. ${fix}`;
+  }
+  if (code === '23505') return `Could not save your spot: the database's id counter is behind. ${fix}`;
+  if (code === 'PGRST301' || /jwt/i.test(msg)) return 'Your login has expired. Log out, log back in, and try again.';
+  return `Could not save your spot to the database: ${msg || 'unknown error'}`;
+}
+
 document.addEventListener('submit', async (e) => {
   if (e.target.id !== 'add-form') return;
   e.preventDefault();
@@ -340,7 +361,7 @@ document.addEventListener('submit', async (e) => {
     });
   } catch (err) {
     console.error('Could not save spot', err);
-    toast('Could not save your spot to the database. Check your connection and try again.');
+    toast(spotSaveError(err), { duration: 9000 });
     return;
   } finally {
     s.saving = false;
