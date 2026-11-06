@@ -413,3 +413,8 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# AI spot recommendations. The function checks the student's login itself
+# (it works with the new publishable keys), so the gateway's JWT check is off.
+[functions.recommend-spots]
+verify_jwt = false

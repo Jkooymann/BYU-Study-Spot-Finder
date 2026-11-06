@@ -35,6 +35,8 @@ const Store = (() => {
       .concat(userSpots().map((s) => ({ ...s, isUserSpot: true, isLocalSpot: true })));
   }
   function getSpot(id) { return allSpots().find((s) => s.id === id) || null; }
+  /** The spot with this database study_spot_id, or null if this page doesn't have it. */
+  function getSpotByDbId(dbId) { return allSpots().find((s) => s.dbId === dbId) || null; }
 
   /**
    * Save a spot from the Add a Spot page. Goes to Supabase when it is
@@ -226,7 +228,7 @@ const Store = (() => {
   function setPref(key, value) { write('pref.' + key, value); }
 
   return {
-    allSpots, getSpot, addUserSpot, deleteSpot, isOwnSpot, randomSpot,
+    allSpots, getSpot, getSpotByDbId, addUserSpot, deleteSpot, isOwnSpot, randomSpot,
     sharedStatus, currentStudent, needsLogin, loadShared,
     favorites, isFav, toggleFav,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,

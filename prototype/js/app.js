@@ -116,9 +116,10 @@ const App = {
   /** Re-render the current page after data/filters change. */
   refresh() {
     // Never replace a form while someone is typing; just update the top bar.
-    if (AccountPages.isPublic(this.base)) { renderTopBar('account'); return; }
+    if (AccountPages.isPublic(this.base)) { renderTopBar('account'); Recommend.refresh(); return; }
     this.renderBase(this.base, true);
     if (SpotDialog.id) SpotDialog.render();
+    Recommend.refresh();
   },
 
   /** Open a random spot (from `list`, or every spot), e.g. when nothing matches. */
