@@ -43,9 +43,12 @@ const DB = (() => {
   const GROUP_TO_MAX = { solo: 1, 'small group': 4, 'big group': 8 };
   const BUSY_TO_DB = { 'Usually empty': 'Low', Moderate: 'Moderate', 'Usually busy': 'High' };
   const BUSY_FROM_DB = { Low: 'Usually empty', Moderate: 'Moderate', High: 'Usually busy' };
+  // student_user!submitted_by_user_id names which link to follow: study_spot and
+  // student_user are also linked through favorite_spot and spot_rating, and a
+  // plain student_user(...) makes Supabase refuse with "more than one relationship".
   const SPOT_COLUMNS = 'study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number, location_description, '
     + 'description, is_indoors, max_group_size, typical_busyness_level, floor_plan_x_percent, floor_plan_y_percent, '
-    + 'study_spot_amenity(amenity_id), student_user(display_name)';
+    + 'study_spot_amenity(amenity_id), submitter:student_user!submitted_by_user_id(display_name)';
 
   /** Turn a study_spot row into the spot shape the site uses (see data.js). */
   function toSpot(row) {
@@ -68,7 +71,7 @@ const DB = (() => {
       busyness: BUSY_FROM_DB[row.typical_busyness_level] || 'Moderate',
       description: row.description || '',
       submittedBy: row.submitted_by_user_id,
-      submittedByName: row.student_user ? row.student_user.display_name : '',
+      submittedByName: row.submitter ? row.submitter.display_name : '',
     };
   }
 
