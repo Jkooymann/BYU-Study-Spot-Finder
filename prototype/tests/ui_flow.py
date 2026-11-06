@@ -124,7 +124,7 @@ with sync_playwright() as p:
 
     page.goto(BASE_URL + '/#add-wsc'); page.wait_for_selector('#add-form')
     assert page.locator('#add-building').input_value() == 'wsc'
-    page.fill('#add-name', 'Test Nook'); page.click('#add-plan svg', position={'x': 60, 'y': 40})
+    page.fill('#add-name', 'Test Nook'); page.click('#add-plan .fp-outline')
     page.click('[data-add-setting="outdoors"]'); page.click('[data-add-tag="wifi"]')
     page.click('#add-form [type="submit"]'); page.wait_for_url('**/#list'); page.wait_for_selector('.spot-card.is-flash')
     spot_id = page.locator('.spot-card.is-flash').get_attribute('data-open-spot')

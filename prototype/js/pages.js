@@ -185,6 +185,7 @@ Pages.building = (buildingId, floorArg) => {
       }).join('')}
     </div>
     <div class="floorplan-card">
+      <p class="fact-note">Approximate building outline, shared across floors. Interior layouts are not shown.</p>
       ${floorPlanSvg(b.id, floor, items)}
       <p class="map-legend" id="campus-map-help">${active
         ? `<span class="legend-dot legend-match"></span>Glowing = matches your filters (${matchCount}) <span class="legend-dot legend-dim"></span>Gray = doesn't match`
@@ -329,8 +330,8 @@ Pages.add = () => {
             </div></div>` : ''}
         </div>
         ${b && s.floor ? `<div class="pin-area">
-            <p class="pin-help">${s.pin ? `${icon('check')}Pin placed. Click again to move it.` : `${icon('pin')}Click the floor plan to place a pin where your spot is.`}</p>
-            <div id="add-plan" class="add-plan">${floorPlanSvg(b.id, s.floor, existing.map((x, i) => ({ spot: x, num: i + 1, match: false })), { pin: s.pin, interactive: true })}</div>
+            <p class="pin-help">${s.pin ? `${icon('check')}Pin placed. Click again to move it.` : `${icon('pin')}Click inside the building outline to place your pin.`}</p>
+            <p class="fact-note">Approximate building outline, shared across floors. Place pins inside the outline; courtyards are excluded.</p><div id="add-plan" class="add-plan">${floorPlanSvg(b.id, s.floor, existing.map((x, i) => ({ spot: x, num: i + 1, match: false })), { pin: s.pin, interactive: true })}</div>
             ${existing.length ? '<p class="fact-note">Gray markers are spots already on this floor.</p>' : ''}
           </div>` : `<div class="pin-placeholder">${icon('layers')}<span>${b ? 'Choose a floor to see its floor plan.' : 'Choose a building and floor to see the floor plan.'}</span></div>`}
         <p class="field-error" id="add-loc-err" ${e.location ? '' : 'hidden'}>${esc(e.location || '')}</p>

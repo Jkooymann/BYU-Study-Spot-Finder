@@ -681,3 +681,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
     --campus-empty: #323e3f; --campus-empty-label: #afc0c6;
   }
 }
+
+/* Exterior silhouettes used for the first floor-map pass. */
+.fp-outline { fill: var(--surface); stroke: var(--muted); stroke-width: 2; }
+.floorplan.is-interactive .fp-pin { pointer-events: none; }

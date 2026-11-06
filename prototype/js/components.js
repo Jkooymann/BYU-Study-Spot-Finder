@@ -242,50 +242,60 @@ function toolbar() {
   ${activeFiltersBar()}`;
 }
 
-/* ---------------- Floor plan (simple rectangles) ---------------- */
-function seeded(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 1000) / 1000; };
+/* ---------------- Floor outline (shared with campus map) ---------------- */
+const FP = { w: 400, h: 250, pad: 28 };
+const floorGeometryCache = new Map();
+function floorGeometry(buildingId) {
+  if (floorGeometryCache.has(buildingId)) return floorGeometryCache.get(buildingId);
+  const footprint = CAMPUS_FOOTPRINTS[buildingId];
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const path = document.createElementNS(svg.namespaceURI, 'path');
+  path.setAttribute('d', footprint.d);
+  svg.append(path);
+  svg.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none';
+  document.body.append(svg);
+  const bounds = path.getBBox();
+  svg.remove();
+  const scale = Math.min((FP.w - 2 * FP.pad) / bounds.width, (FP.h - 2 * FP.pad) / bounds.height);
+  const w = bounds.width * scale, h = bounds.height * scale;
+  const x = (FP.w - w) / 2, y = (FP.h - h) / 2;
+  const geometry = { x, y, w, h, transform: `translate(${x} ${y}) scale(${scale}) translate(${-bounds.x} ${-bounds.y})` };
+  floorGeometryCache.set(buildingId, geometry);
+  return geometry;
 }
-const FP = { w: 400, h: 250, pad: 10 };
-const fpX = (pct) => FP.pad + (pct / 100) * (FP.w - FP.pad * 2);
-const fpY = (pct) => FP.pad + (pct / 100) * (FP.h - FP.pad * 2);
 
-/**
- * spots: [{ spot, num, match }]   opts: { pin:{x,y}, interactive }
+/** Percent positions remain relative to the building's bounding box, north up.
+ * All floors use its exterior silhouette until individual floor outlines exist.
+ * Existing positions are preserved; older sample pins may need manual adjustment.
  */
 function floorPlanSvg(buildingId, floor, spots = [], opts = {}) {
-  const rnd = seeded(buildingId + '-' + floor);
-  const left = FP.pad, right = FP.w - FP.pad, top = FP.pad, bottom = FP.h - FP.pad;
-  const cTop = 108, cBot = 142;
-  const rooms = [];
-  const row = (y1, y2) => {
-    let x = left;
-    while (x < right - 30) {
-      const w = Math.min(right - x, 50 + Math.floor(rnd() * 70));
-      rooms.push(`<rect class="fp-room" x="${x}" y="${y1}" width="${right - x - w < 30 ? right - x : w}" height="${y2 - y1}"/>`);
-      if (right - x - w < 30) break;
-      x += w;
-    }
-  };
-  row(top, cTop); row(cBot, bottom);
-  const stairX = left + 20 + Math.floor(rnd() * 300);
+  const geometry = floorGeometry(buildingId);
+  const xAt = pct => geometry.x + pct / 100 * geometry.w;
+  const yAt = pct => geometry.y + pct / 100 * geometry.h;
   const markers = spots.map(({ spot, num, match }) => {
-    const x = fpX(spot.position.x), y = fpY(spot.position.y);
+    const x = xAt(spot.position.x), y = yAt(spot.position.y);
     return `<g class="fp-marker${match ? ' is-match' : ' is-off'}" data-open-spot="${spot.id}" tabindex="0" role="button" aria-label="${esc(spot.name)}${match ? '' : ' (does not match filters)'}" transform="translate(${x} ${y})">
       <circle class="fp-halo" r="16"/><circle class="fp-dot" r="10"/><text class="fp-num" y="4">${num}</text></g>`;
   }).join('');
-  const pin = opts.pin ? `<g class="fp-pin" transform="translate(${fpX(opts.pin.x)} ${fpY(opts.pin.y)})"><circle class="fp-halo" r="16"/><path class="fp-pin-shape" d="M0 0c-6-7-9-11-9-15a9 9 0 0 1 18 0c0 4-3 8-9 15z" transform="translate(0 -2)"/><circle class="fp-pin-hole" cy="-17" r="3.2"/></g>` : '';
-  return `<svg class="floorplan${opts.interactive ? ' is-interactive' : ''}" viewBox="0 0 ${FP.w} ${FP.h}" role="img" aria-label="Floor plan, floor ${floor}">
-    <rect class="fp-ground" x="0" y="0" width="${FP.w}" height="${FP.h}" rx="12"/>
-    ${rooms.join('')}
-    <rect class="fp-corridor" x="${left}" y="${cTop}" width="${right - left}" height="${cBot - cTop}"/>
-    <g class="fp-stairs"><rect x="${stairX}" y="${cTop + 6}" width="26" height="22"/><path d="M${stairX + 5} ${cTop + 6}v22M${stairX + 11} ${cTop + 6}v22M${stairX + 17} ${cTop + 6}v22"/></g>
-    <rect class="fp-wall" x="${left}" y="${top}" width="${right - left}" height="${bottom - top}" rx="4"/>
-    <text class="fp-label" x="${right - 8}" y="${cTop + 21}" text-anchor="end">Floor ${floor}</text>
+  const pin = opts.pin ? `<g class="fp-pin" transform="translate(${xAt(opts.pin.x)} ${yAt(opts.pin.y)})"><circle class="fp-halo" r="16"/><path class="fp-pin-shape" d="M0 0c-6-7-9-11-9-15a9 9 0 0 1 18 0c0 4-3 8-9 15z" transform="translate(0 -2)"/><circle class="fp-pin-hole" cy="-17" r="3.2"/></g>` : '';
+  return `<svg class="floorplan${opts.interactive ? ' is-interactive' : ''}" data-floor-building="${buildingId}" viewBox="0 0 ${FP.w} ${FP.h}" role="img" aria-label="${esc(buildingById(buildingId).name)}, floor ${floor}: approximate building outline">
+    <rect class="fp-ground" width="${FP.w}" height="${FP.h}" rx="12"/>
+    <path class="fp-outline" d="${CAMPUS_FOOTPRINTS[buildingId].d}" transform="${geometry.transform}" fill-rule="evenodd" vector-effect="non-scaling-stroke"/>
+    <text class="fp-label" x="12" y="18">${esc(buildingById(buildingId).short)} · Floor ${floor} · North up</text>
     ${markers}${pin}
   </svg>`;
+}
+
+// Convert a screen click through the SVG transforms so responsive scaling and
+// letterboxing do not move the pin. Courtyards and exterior space are excluded.
+function floorPinAt(svg, clientX, clientY) {
+  const outline = svg.querySelector('.fp-outline');
+  const screenPoint = new DOMPoint(clientX, clientY);
+  const local = screenPoint.matrixTransform(outline.getScreenCTM().inverse());
+  if (!outline.isPointInFill(local)) return null;
+  const point = screenPoint.matrixTransform(svg.getScreenCTM().inverse());
+  const geometry = floorGeometry(svg.dataset.floorBuilding);
+  return { x: (point.x - geometry.x) / geometry.w * 100, y: (point.y - geometry.y) / geometry.h * 100 };
 }
 
 /* ---------------- Toast ---------------- */

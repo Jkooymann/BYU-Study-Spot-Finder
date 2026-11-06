@@ -271,10 +271,9 @@ document.addEventListener('click', (e) => {
   if (t.closest('[data-add-cancel]')) { AddState.reset(); App.go('list'); return; }
   const plan = t.closest('#add-plan svg');
   if (plan) {
-    const r = plan.getBoundingClientRect();
-    const sx = ((e.clientX - r.left) / r.width) * FP.w, sy = ((e.clientY - r.top) / r.height) * FP.h;
-    const clamp = (v) => Math.round(Math.min(97, Math.max(3, v)) * 10) / 10;
-    AddState.pin = { x: clamp(((sx - FP.pad) / (FP.w - FP.pad * 2)) * 100), y: clamp(((sy - FP.pad) / (FP.h - FP.pad * 2)) * 100) };
+    const pin = floorPinAt(plan, e.clientX, e.clientY);
+    if (!pin) { toast('Place the pin inside the building outline.'); return; }
+    AddState.pin = pin;
     delete AddState.errors.location;
     App.refresh();
   }
