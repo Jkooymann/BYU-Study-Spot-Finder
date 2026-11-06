@@ -1,6 +1,6 @@
 /* =========================================================================
    Reusable components: icons, top bar + Home Menu, chips, badges, star
-   rating, spot card, active-filter bar, group-size picker, floor plan,
+   spot card, active-filter bar, group-size picker, floor plan,
    Filter Panel, Spot Details dialog, toast.
    ========================================================================= */
 
@@ -40,6 +40,10 @@ const ICONS = {
   users2: '<circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 13.5a7 7 0 0 1 4 6.5"/>',
   users3: '<circle cx="12" cy="7" r="3"/><circle cx="5" cy="10" r="2.3"/><circle cx="19" cy="10" r="2.3"/><path d="M6.5 20a5.5 5.5 0 0 1 11 0M1 19a4 4 0 0 1 4.5-4M23 19a4 4 0 0 0-4.5-4"/>',
   sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  chevronDown: '<path d="m6 9 6 6 6-6"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
 };
 function icon(name, cls = '') {
   return `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
@@ -47,27 +51,33 @@ function icon(name, cls = '') {
 const GROUP_ICON = { solo: 'user', 'small group': 'users2', 'big group': 'users3' };
 const groupLabel = (key) => (GROUP_SIZES.find((g) => g.key === key) || {}).label || key;
 
-/* ---------------- Top bar + Home Menu ---------------- */
+/* ---------------- Top bar + menu ---------------- */
+// The ☰ menu on the right of the top bar (the logo also goes to Get Started).
 const HOME_MENU = [
-  { key: 'favorites', label: 'Favorites', sub: 'Favorites & saved filters', icon: 'star', route: 'favorites' },
-  { key: 'list', label: 'Study Spot List', sub: 'Browse every spot', icon: 'list', route: 'list' },
+  { key: 'start', label: 'Home', sub: 'Pick what you need in a spot', icon: 'home', route: 'start' },
   { key: 'map', label: 'Campus Map', sub: 'Explore by building', icon: 'map', route: 'map' },
-  { key: 'start', label: 'Start Over', sub: 'Clears active filters', icon: 'refresh', route: 'start', clear: true },
-  { key: 'add', label: 'Add a Spot', sub: 'Save your own spot', icon: 'plus', route: 'add' },
+  { key: 'list', label: 'Study Spots', sub: 'Browse every spot', icon: 'list', route: 'list' },
+  { key: 'favorites', label: 'Favorites', sub: 'Your saved study spots', icon: 'star', route: 'favorites' },
+  { key: 'add', label: 'Add a Spot', sub: 'Share a spot you love', icon: 'plus', route: 'add' },
+  { key: 'reset', label: 'Start Over', sub: 'Clear all filters', icon: 'refresh', route: 'start', clear: true, divider: true },
 ];
 
+function menuItem({ label, sub, ic, attrs = '', current = false, divider = false }) {
+  return `${divider ? '<div class="menu-divider" role="separator"></div>' : ''}
+    <button type="button" role="menuitem" class="menu-item${current ? ' is-current' : ''}" ${attrs}${current ? ' aria-current="page"' : ''}>
+      <span class="menu-item-ic">${icon(ic)}</span>
+      <span><span class="menu-item-label">${label}</span>${sub ? `<span class="menu-item-sub">${sub}</span>` : ''}</span>
+    </button>`;
+}
+
 function renderTopBar(pageKey) {
-  if (pageKey === 'account') {
-    $('#topbar').innerHTML = `<div class="topbar-inner"><a class="brand" href="#welcome" aria-label="BYU Study Spot Finder, Welcome"><span class="brand-mark" aria-hidden="true">${icon('pin')}</span><span class="brand-name"><span class="brand-byu">BYU</span> Study Spot Finder</span></a></div>`;
-    return;
-  }
   const link = (route, label, ic) => {
     const cur = pageKey === route;
     return `<a href="#${route}" class="nav-link${cur ? ' is-current' : ''}"${cur ? ' aria-current="page"' : ''}>${icon(ic)}<span>${label}</span></a>`;
   };
   $('#topbar').innerHTML = `
     <div class="topbar-inner">
-      <a class="brand" href="#start" aria-label="BYU Study Spot Finder, Get Started">
+      <a class="brand" href="#start" aria-label="BYU Study Spot Finder, go to Home">
         <span class="brand-mark" aria-hidden="true">${icon('pin')}</span>
         <span class="brand-name"><span class="brand-byu">BYU</span> Study Spot Finder</span>
       </a>
@@ -75,31 +85,45 @@ function renderTopBar(pageKey) {
         ${link('map', 'Map', 'map')}${link('list', 'List', 'list')}${link('favorites', 'Favorites', 'star')}
       </nav>
       <div class="topbar-right">
-      ${studentPicker()}
-      <div class="home-menu-wrap">
-        <button id="home-btn" class="icon-btn home-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="home-menu" aria-label="Home menu">${icon('home')}</button>
-        <div id="home-menu" class="home-menu" role="menu" aria-label="Home menu" hidden>
-          ${HOME_MENU.map((m) => `
-            <button type="button" role="menuitem" class="home-item${pageKey === m.key ? ' is-current' : ''}" data-menu-route="${m.route}"${m.clear ? ' data-menu-clear' : ''}${pageKey === m.key ? ' aria-current="page"' : ''}>
-              <span class="home-item-ic">${icon(m.icon)}</span>
-              <span><span class="home-item-label">${m.label}</span><span class="home-item-sub">${m.sub}</span></span>
-            </button>`).join('')}
+        ${accountControl(pageKey)}
+        <div class="menu-wrap">
+          <button id="home-btn" class="bar-btn menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="home-menu" aria-label="Menu">${icon('menu')}</button>
+          <div id="home-menu" class="menu" role="menu" aria-label="Menu" hidden>
+            ${HOME_MENU.map((m) => menuItem({
+              label: m.label, sub: m.sub, ic: m.icon, divider: m.divider,
+              current: pageKey === m.key,
+              attrs: `data-menu-route="${m.route}"${m.clear ? ' data-menu-clear' : ''}`,
+            })).join('')}
+          </div>
         </div>
-      </div>
       </div>
     </div>`;
 }
-/** "Viewing as" dropdown: which sample student's favorites to show and save (no sign-in yet). */
-function studentPicker() {
-  const list = Store.students();
-  if (Store.sharedStatus() !== 'ok' || !list.length) return '';
+/** Top-right account control: "Log in" when logged out, or your name with a Log out dropdown. */
+function accountControl(pageKey) {
+  // Still checking who is logged in: keep the space empty instead of flashing "Log in".
+  if (Store.sharedStatus() === 'loading') return '';
   const me = Store.currentStudent();
-  return `<label class="student-pick" title="Favorites are saved for this student and shared with your team">
-      ${icon('user')}
-      <select id="student-select" class="student-select" aria-label="Viewing as student">
-        ${list.map((u) => `<option value="${u.user_id}"${me && me.user_id === u.user_id ? ' selected' : ''}>${esc(u.display_name)}</option>`).join('')}
-      </select>
-    </label>`;
+  if (!me) {
+    const cur = pageKey === 'account';
+    return `<a href="#welcome" class="bar-btn login-btn${cur ? ' is-current' : ''}"${cur ? ' aria-current="page"' : ''}>${icon('user')}<span class="login-label">Log in</span></a>`;
+  }
+  return `<div class="menu-wrap">
+      <button id="account-btn" class="bar-btn account-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" title="${esc(me.display_name)}">${icon('user')}<span class="account-name">${esc(me.display_name)}</span>${icon('chevronDown', 'chev')}</button>
+      <div id="account-menu" class="menu account-menu" role="menu" aria-label="Account" hidden>
+        <div class="menu-head"><span class="menu-head-label">Logged in as</span><strong>${esc(me.display_name)}</strong><span>${esc(me.byu_net_id)}@byu.edu</span></div>
+        ${menuItem({ label: 'Log out', sub: 'Your favorites stay saved', ic: 'logout', attrs: 'data-sign-out' })}
+      </div>
+    </div>`;
+}
+function accountMenuOpen() { const m = $('#account-menu'); return !!m && !m.hidden; }
+function setAccountMenu(open) {
+  const m = $('#account-menu'), b = $('#account-btn');
+  if (!m) return;
+  m.hidden = !open;
+  b.setAttribute('aria-expanded', String(open));
+  b.classList.toggle('is-open', open);
+  if (open) $('.menu-item', m).focus();
 }
 function homeMenuOpen() { const m = $('#home-menu'); return m && !m.hidden; }
 function setHomeMenu(open) {
@@ -108,7 +132,31 @@ function setHomeMenu(open) {
   m.hidden = !open;
   b.setAttribute('aria-expanded', String(open));
   b.classList.toggle('is-open', open);
-  if (open) { const first = $('.home-item.is-current', m) || $('.home-item', m); first && first.focus(); }
+  if (open) { const first = $('.menu-item.is-current', m) || $('.menu-item', m); first && first.focus(); }
+}
+
+/* ---------------- Page header (same on every page) ---------------- */
+function pageHeader({ eyebrow = '', title, sub = '', back = '', display = false }) {
+  return `<header class="page-hero">
+    ${back}
+    ${eyebrow ? `<p class="hero-eyebrow">${eyebrow}</p>` : ''}
+    <h1${display ? ' class="display"' : ''}>${title}</h1>
+    ${sub ? `<p class="hero-sub">${sub}</p>` : ''}
+  </header>`;
+}
+
+/* ---------------- No results (List, Map, Floor view, Get Started) ---------------- */
+function noResults(opts = {}) {
+  return `<div class="empty no-results" role="status">
+    <span class="empty-ic">${icon('search')}</span>
+    <p class="empty-title">${opts.title || 'No spots match all of your filters'}</p>
+    <p>Try a different combination, or let us pick a spot for you.</p>
+    <div class="empty-actions">
+      ${opts.noPanel ? '' : `<button type="button" class="btn btn-primary" data-open-filters>${icon('filter')}Change filters</button>`}
+      <button type="button" class="btn btn-secondary" data-random-spot>${icon('shuffle')}Pick a random spot</button>
+      <button type="button" class="link-btn" data-clear-filters>Clear all filters</button>
+    </div>
+  </div>`;
 }
 
 /* ---------------- Small pieces ---------------- */
@@ -125,17 +173,12 @@ function favButton(id, withLabel = false) {
   const on = Store.isFav(id);
   return `<button type="button" class="fav-btn${on ? ' is-on' : ''}${withLabel ? ' fav-btn-label' : ''}" data-fav="${id}" aria-pressed="${on}" aria-label="${on ? 'Remove from favorites' : 'Add to favorites'}">${icon('star')}${withLabel ? `<span>${on ? 'Favorited' : 'Favorite'}</span>` : ''}</button>`;
 }
-function starRating(id) {
-  const r = Store.getRating(id);
-  return `<div class="stars" role="radiogroup" aria-label="Your rating">
-    ${[1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="${r === n}" aria-label="${plural(n, 'star')}" class="star${n <= r ? ' is-on' : ''}" data-rate="${id}" data-value="${n}">${icon('star')}</button>`).join('')}
-  </div>`;
+function spotBadge(s) {
+  if (!s.isUserSpot) return '';
+  const me = Store.currentStudent();
+  if (s.submittedBy == null || (me && me.user_id === s.submittedBy)) return '<span class="badge-mine">My spot</span>';
+  return `<span class="badge-mine">Added by ${esc(s.submittedByName || 'a teammate')}</span>`;
 }
-function starsSmall(n) {
-  if (!n) return '';
-  return `<span class="stars-small" aria-label="Your rating: ${plural(n, 'star')}">${[1, 2, 3, 4, 5].map((i) => `<span class="${i <= n ? 'is-on' : ''}">${icon('star')}</span>`).join('')}</span>`;
-}
-
 function spotCard(s, opts = {}) {
   const b = buildingById(s.building) || { short: s.building };
   const feats = FEATURES.filter((f) => s.features[f.key]);
@@ -144,10 +187,10 @@ function spotCard(s, opts = {}) {
     <div class="spot-card-main">
       <div class="spot-card-title">
         <h3>${esc(s.name)}</h3>
-        ${s.isUserSpot ? '<span class="badge-mine">My spot</span>' : ''}
+        ${spotBadge(s)}
       </div>
       <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}</p>
-      <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}${starsSmall(Store.getRating(s.id))}</div>
+      <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}</div>
       <ul class="feature-icons" aria-label="Features">
         ${feats.map((f) => `<li title="${f.label}">${icon(f.key)}<span class="sr-only">${f.label}</span></li>`).join('')}
       </ul>
@@ -165,7 +208,7 @@ function activeFiltersBar() {
     <button type="button" class="link-btn" data-clear-filters>Clear all</button>
   </div>`;
 }
-/* Read-only chips for saved filter sets */
+/* Read-only chips for a set of filters */
 function filterChips(f) {
   const items = Store.describe(f);
   return `<div class="chip-row">${items.map((i) => `<span class="chip chip-static${i.group ? ' chip-group' : ''}">${esc(i.label)}</span>`).join('')}</div>`;
@@ -180,7 +223,14 @@ function groupSizePicker(current, attr = 'data-quick-group', withAny = true) {
   </div>`;
 }
 
-function toolbar(count) {
+/* Indoors / Outdoors: one choice instead of two separate checkboxes */
+function settingPicker(current, attr, withAny = true) {
+  return `<div class="seg" role="radiogroup" aria-label="Indoors or outdoors">
+    ${SETTINGS.filter((x) => withAny || x.key).map((x) => `<button type="button" role="radio" aria-checked="${current === x.key}" class="seg-opt${current === x.key ? ' is-on' : ''}" ${attr}="${x.key}">${icon(x.icon)}${x.label}</button>`).join('')}
+  </div>`;
+}
+
+function toolbar() {
   const n = Store.describe(Store.getFilters()).length;
   return `<div class="toolbar">
     <div class="toolbar-group">
@@ -240,30 +290,46 @@ function floorPlanSvg(buildingId, floor, spots = [], opts = {}) {
 
 /* ---------------- Toast ---------------- */
 let toastTimer;
-function toast(msg) {
+/** Short message at the bottom. Optional action adds a link, e.g. { href: '#login', label: 'Log in' }. */
+function toast(msg, action) {
   const t = $('#toast');
   t.textContent = msg;
+  if (action && action.href) t.insertAdjacentHTML('beforeend', ` <a class="toast-action" href="${action.href}">${esc(action.label)}</a>`);
   t.hidden = false;
   t.classList.add('is-on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.classList.remove('is-on'); setTimeout(() => { t.hidden = true; }, 250); }, 2600);
+  toastTimer = setTimeout(() => { t.classList.remove('is-on'); setTimeout(() => { t.hidden = true; }, 250); }, (action && action.duration) || (action ? 5000 : 2600));
 }
 
 /* ---------------- Sheets (shared open/close) ---------------- */
 function anySheetOpen() { return !$('#filter-panel').hidden || !$('#spot-dialog').hidden; }
+/* While a sheet is open the page behind it is pinned in place (overflow:hidden alone
+   doesn't stop phones from scrolling the page instead of the sheet), and it goes
+   back to the same scroll position when the sheet closes. */
+let lockedScrollY = null;
 function syncBackdrop() {
   const open = anySheetOpen();
   $('#sheet-backdrop').hidden = !open;
   document.documentElement.classList.toggle('sheet-open', open);
+  const body = document.body;
+  if (open && lockedScrollY === null) {
+    lockedScrollY = window.scrollY;
+    body.style.top = `-${lockedScrollY}px`;
+    body.classList.add('scroll-locked');
+  } else if (!open && lockedScrollY !== null) {
+    const y = lockedScrollY;
+    lockedScrollY = null;
+    body.classList.remove('scroll-locked');
+    body.style.top = '';
+    window.scrollTo(0, y);
+  }
 }
 
 /* ---------------- Filter Panel (Component 8) ---------------- */
 const FilterPanel = {
   draft: null,
-  saving: false,
   open() {
     this.draft = Store.getFilters();
-    this.saving = false;
     this.render();
     $('#filter-panel').hidden = false;
     syncBackdrop();
@@ -285,18 +351,21 @@ const FilterPanel = {
         <button type="button" class="icon-btn" id="fp-close" aria-label="Close filters">${icon('x')}</button>
       </header>
       <div class="sheet-body">
-        <section class="fp-section fp-group">
+        <section class="fp-section">
           <h3 class="fp-h">Group size</h3>
           ${groupSizePicker(d.groupSize, 'data-fp-group')}
         </section>
         <section class="fp-section">
+          <h3 class="fp-h">Indoors or outdoors</h3>
+          ${settingPicker(d.setting, 'data-fp-setting')}
+        </section>
+        <section class="fp-section">
           <h3 class="fp-h">Features</h3>
           <div class="check-grid">
-            ${FEATURES.map((f) => `<label class="check" for="fp-${f.key}">
+            ${FILTER_FEATURES.map((f) => `<label class="check" for="fp-${f.key}">
               <input type="checkbox" id="fp-${f.key}" data-fp-feature="${f.key}" ${d.features[f.key] ? 'checked' : ''}>
               <span class="check-box">${icon('check')}</span>${icon(f.key, 'check-ic')}<span>${f.label}</span></label>`).join('')}
           </div>
-          ${d.indoors ? `<p class="fp-note">Also showing <strong>indoor spots only</strong> (from Get Started). <button type="button" class="link-btn" data-fp-indoors>Remove</button></p>` : ''}
         </section>
         <section class="fp-section">
           <label class="fp-h" for="fp-building">Building</label>
@@ -305,22 +374,13 @@ const FilterPanel = {
             ${BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => `<option value="${b.id}" ${d.building === b.id ? 'selected' : ''}>${esc(b.name)} (${b.short})</option>`).join('')}
           </select>
         </section>
-        <section class="fp-section fp-save" ${this.saving ? '' : 'hidden'}>
-          <label class="fp-h" for="fp-save-name">Name this filter set</label>
-          <div class="inline-form">
-            <input id="fp-save-name" class="input" type="text" maxlength="40" placeholder="e.g., Quiet + outlets">
-            <button type="button" class="btn btn-primary btn-sm" data-fp-save-confirm>Save</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-fp-save-cancel>Cancel</button>
-          </div>
-          <p class="field-error" id="fp-save-error" hidden></p>
-        </section>
       </div>
       <footer class="sheet-foot">
+        <p class="fp-none" id="fp-none" role="status" hidden>No spots match all of these. Remove a filter, or <button type="button" class="link-btn" data-random-spot>pick a random spot</button>.</p>
         <div class="sheet-foot-row">
           <button type="button" class="btn btn-ghost" data-fp-reset>Reset</button>
-          <button type="button" class="btn btn-secondary" data-fp-save>Save these filters</button>
+          <button type="button" class="btn btn-primary" data-fp-apply id="fp-apply"></button>
         </div>
-        <button type="button" class="btn btn-primary btn-block" data-fp-apply id="fp-apply"></button>
       </footer>`;
     this.updateCount();
   },
@@ -329,38 +389,22 @@ const FilterPanel = {
     const b = $('#fp-apply');
     b.textContent = n ? `Show ${plural(n, 'spot')}` : 'No spots match';
     b.disabled = n === 0;
+    $('#fp-none').hidden = n > 0;
   },
   handleClick(e) {
     const t = e.target.closest('button, input, select');
     if (!t) return;
     if (t.id === 'fp-close') return this.close();
-    if (t.matches('[data-fp-group]')) { this.draft.groupSize = t.dataset.fpGroup; return this.rerenderKeepSave(); }
-    if (t.matches('[data-fp-indoors]')) { this.draft.indoors = false; return this.rerenderKeepSave(); }
-    if (t.matches('[data-fp-reset]')) { this.draft = Store.emptyFilters(); return this.rerenderKeepSave(); }
-    if (t.matches('[data-fp-save]')) {
-      if (!Store.isActive(this.draft)) { toast('Pick at least one filter to save.'); return; }
-      this.saving = true; $('.fp-save').hidden = false; $('#fp-save-name').focus(); return;
-    }
-    if (t.matches('[data-fp-save-cancel]')) { this.saving = false; $('.fp-save').hidden = true; return; }
-    if (t.matches('[data-fp-save-confirm]')) return this.confirmSave();
+    if (t.matches('[data-fp-group]')) { this.draft.groupSize = t.dataset.fpGroup; return this.render(); }
+    if (t.matches('[data-fp-setting]')) { this.draft.setting = t.dataset.fpSetting; return this.render(); }
+    if (t.matches('[data-fp-reset]')) { this.draft = Store.emptyFilters(); return this.render(); }
     if (t.matches('[data-fp-apply]')) {
       Store.setFilters(this.draft);
-      Store.pushHistory(this.draft);
       this.close();
       App.refresh();
       toast(`Showing ${plural(Store.filtered().length, 'matching spot')}`);
     }
   },
-  confirmSave() {
-    const name = $('#fp-save-name').value.trim();
-    const err = $('#fp-save-error');
-    if (!name) { err.textContent = 'Give this filter set a name, like “Quiet + outlets”.'; err.hidden = false; $('#fp-save-name').focus(); return; }
-    Store.saveFilterSet(name, this.draft);
-    this.saving = false;
-    $('.fp-save').hidden = true;
-    toast(`Saved “${name}” to Favorites`);
-  },
-  rerenderKeepSave() { const name = $('#fp-save-name') ? $('#fp-save-name').value : ''; this.render(); if (this.saving) $('#fp-save-name').value = name; },
   handleChange(e) {
     const t = e.target;
     if (t.matches('[data-fp-feature]')) this.draft.features[t.dataset.fpFeature] = t.checked;
@@ -402,9 +446,9 @@ const SpotDialog = {
       </header>
       <div class="sheet-body sd-body">
         <div class="sd-title">
-          <p class="eyebrow">${esc(b.name)}</p>
+          <p class="eyebrow eyebrow-gold">${esc(b.name)}</p>
           <h2 id="sd-title">${esc(s.name)}</h2>
-          <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}${s.isUserSpot ? ' <span class="badge-mine">My spot</span>' : ''}</p>
+          <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}${s.isUserSpot ? ' ' + spotBadge(s) : ''}</p>
         </div>
         <div class="sd-actions">
           ${favButton(s.id, true)}
@@ -422,24 +466,25 @@ const SpotDialog = {
             <span class="fact-value">${busyBadge(s.busyness)}</span>
             <span class="fact-note">Estimated typical level, not live data.</span>
           </div>
+          <div class="sd-fact">
+            <span class="fact-label">Setting</span>
+            <span class="fact-value">${icon(s.features.outdoors ? 'outdoors' : 'indoors')}${s.features.outdoors ? 'Outdoors' : 'Indoors'}</span>
+          </div>
         </div>
         <h3 class="sd-h">Features</h3>
         <ul class="feature-list">
-          ${FEATURES.map((f) => `<li class="${s.features[f.key] ? 'has' : 'not'}">
+          ${FILTER_FEATURES.map((f) => `<li class="${s.features[f.key] ? 'has' : 'not'}">
             <span class="yn" aria-hidden="true">${s.features[f.key] ? '✓' : '✗'}</span>${icon(f.key)}<span>${f.label}</span>
             <span class="sr-only">${s.features[f.key] ? 'yes' : 'no'}</span></li>`).join('')}
         </ul>
-        <h3 class="sd-h">Your rating</h3>
-        ${starRating(s.id)}
-        <p class="fact-note">Ratings are saved on this device only.</p>
-        <div class="sd-danger">
+        ${Store.isOwnSpot(s) ? `<div class="sd-danger">
           ${this.confirming ? `
-            <p><strong>Delete this spot?</strong> ${s.isUserSpot ? 'Your spot will be removed from this device.' : 'This hides the sample spot on this device. You can restore sample spots from the list page.'}</p>
+            <p><strong>Delete your spot?</strong> ${s.isLocalSpot ? 'It will be removed from this device.' : 'It will be removed for everyone.'}</p>
             <div class="sd-danger-row">
               <button type="button" class="btn btn-danger btn-sm" data-sd-delete-confirm>Delete spot</button>
               <button type="button" class="btn btn-ghost btn-sm" data-sd-delete-cancel>Cancel</button>
-            </div>` : `<button type="button" class="btn btn-ghost btn-sm danger-text" data-sd-delete>${icon('trash')}Delete this spot</button>`}
-        </div>
+            </div>` : `<button type="button" class="btn btn-ghost btn-sm danger-text" data-sd-delete>${icon('trash')}Delete my spot</button>`}
+        </div>` : ''}
       </div>`;
   },
 };

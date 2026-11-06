@@ -7,12 +7,12 @@
 insert into public.building
   (building_id, building_code, building_name, campus_map_latitude, campus_map_longitude, floor_count, weekday_open_time, weekday_close_time)
 values
-  (1, 'HBLL', 'Harold B. Lee Library',    40.248800, -111.649200, 5, '07:00', '00:00'),
-  (2, 'WSC',  'Wilkinson Student Center', 40.248400, -111.646800, 3, '07:00', '23:00'),
-  (3, 'JFSB', 'Joseph F. Smith Building', 40.248700, -111.651000, 4, '07:00', '22:00'),
-  (4, 'TNRB', 'Tanner Building',          40.250200, -111.654500, 6, '07:00', '22:00'),
-  (5, 'TMCB', 'Talmage Building',         40.249300, -111.651000, 4, '07:00', '23:00'),
-  (6, 'ESC',  'Eyring Science Center',    40.247400, -111.648500, 3, '07:00', '22:00')
+  (1, 'HBLL', 'Harold B. Lee Library',    40.248630, -111.649260, 5, '07:00', '00:00'),
+  (2, 'WSC',  'Wilkinson Student Center', 40.248609, -111.647124, 3, '07:00', '23:00'),
+  (3, 'JFSB', 'Joseph F. Smith Building', 40.248371, -111.651633, 4, '07:00', '22:00'),
+  (4, 'TNRB', 'Tanner Building',          40.250409, -111.652574, 6, '07:00', '22:00'),
+  (5, 'TMCB', 'Talmage Building',         40.249600, -111.650862, 4, '07:00', '23:00'),
+  (6, 'ESC',  'Eyring Science Center',    40.247227, -111.650281, 3, '07:00', '22:00')
 on conflict do nothing;
 
 insert into public.student_user

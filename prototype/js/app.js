@@ -2,7 +2,7 @@
    App — hash router + all delegated event handling.
    Routes:  #start  #map  #map-spot-<id>  #building-<id>[-f<floor>]
             #spot-<id> (Spot Details over the page you came from)
-            #list  #favorites  #favorites-filters  #add
+            #list  #favorites  #add  #add-<building id> (Add a Spot with the building picked)
    ========================================================================= */
 
 const App = {
@@ -14,7 +14,7 @@ const App = {
   init() {
     window.addEventListener('hashchange', () => { this.navCount++; this.route(); });
     this.route();
-    if (AccountSession.signedIn && Store.sharedStatus() !== 'off') {
+    if (Store.sharedStatus() !== 'off') {
       this.loadShared();
       // Pick up teammates' changes when you come back to the tab.
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.loadShared(); });
@@ -27,12 +27,20 @@ const App = {
   },
 
   route() {
-    let h = location.hash.slice(1) || (AccountSession.signedIn ? 'start' : 'welcome');
-    if (!AccountSession.signedIn && !AccountPages.isPublic(h)) {
-      h = 'welcome';
-      history.replaceState(null, '', '#welcome');
+    // Account pages (#welcome, #login, #signup) are optional; the rest of the site works without signing in.
+    let h = location.hash.slice(1) || 'start';
+    // Coming back from a Supabase email link (#access_token=… or #error=…): Supabase reads it, we show Get Started.
+    if (/(^|&)(access_token|error)=/.test(h)) { h = 'start'; history.replaceState(null, '', '#start'); }
+    // Already logged in: skip the Welcome / Log in / Create account pages.
+    if (AccountPages.isPublic(h) && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
+    // #add-<building>: open Add a Spot with that building already chosen.
+    if (h.startsWith('add-')) {
+      const b = buildingById(h.slice(4));
+      if (b && AddState.building !== b.id) { AddState.building = b.id; AddState.floor = b.floors[0]; AddState.pin = null; }
+      h = 'add'; history.replaceState(null, '', '#add');
     }
     setHomeMenu(false);
+    setAccountMenu(false);
     FilterPanel.close();
     if (h.startsWith('spot-')) {
       const id = h.slice(5);
@@ -63,7 +71,7 @@ const App = {
     else if (h.startsWith('map-spot-')) html = Pages.map(h.slice(9));
     else if (h.startsWith('building-')) { const [id, fl] = h.slice(9).split('-f'); html = Pages.building(id, fl); }
     else if (h === 'list') html = Pages.list();
-    else if (h === 'favorites' || h === 'favorites-filters') html = Pages.favorites(h === 'favorites-filters' ? 'filters' : 'spots');
+    else if (h === 'favorites' || h === 'favorites-filters') html = Pages.favorites(); // old saved-filters link still works
     else if (h === 'add') html = Pages.add();
     else html = Pages.notFound();
     renderTopBar(AccountPages.isPublic(h) ? 'account' : this.pageKeyFor(h));
@@ -75,6 +83,15 @@ const App = {
     window.scrollTo(0, keepScroll ? y : 0);
     const flash = $('.spot-card.is-flash');
     if (flash) flash.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // Phones: the map is wider than the screen, so center it on the selected building (or the library).
+    const wrap = $('.map-wrap');
+    if (wrap && wrap.scrollWidth > wrap.clientWidth) {
+      const focus = $('.bldg.is-target .bldg-shape') || $('[data-building="hbll"] .bldg-shape');
+      const scale = wrap.scrollWidth / CAMPUS.w;
+      if (focus) wrap.scrollLeft = (focus.getBBox().x + focus.getBBox().width / 2) * scale - wrap.clientWidth / 2;
+    }
+    // Selected spot on the map: bring its card and the highlighted building into view.
+    if (!keepScroll && h.startsWith('map-spot-') && $('#map-selected')) $('#map-selected').scrollIntoView({ block: 'start', behavior: 'smooth' });
   },
 
   /** Load shared favorites from Supabase, then redraw. */
@@ -98,9 +115,19 @@ const App = {
 
   /** Re-render the current page after data/filters change. */
   refresh() {
-    if (AccountPages.isPublic(this.base)) return; // Never replace a form while someone is typing.
+    // Never replace a form while someone is typing; just update the top bar.
+    if (AccountPages.isPublic(this.base)) { renderTopBar('account'); return; }
     this.renderBase(this.base, true);
     if (SpotDialog.id) SpotDialog.render();
+  },
+
+  /** Open a random spot (from `list`, or every spot), e.g. when nothing matches. */
+  randomSpot(list) {
+    const choice = Store.randomSpot(list);
+    if (!choice) return;
+    FilterPanel.close();
+    this.go('spot-' + choice.id);
+    toast(`Random pick: ${choice.name}`);
   },
 
   closeSpot() {
@@ -112,6 +139,14 @@ const App = {
 /* ---------------- Delegated clicks ---------------- */
 document.addEventListener('click', (e) => {
   const t = e.target;
+
+  // Account menu (your name in the top bar)
+  if (t.closest('#account-btn')) { setAccountMenu(!accountMenuOpen()); return; }
+  if (t.closest('[data-sign-out]')) { setAccountMenu(false); AccountSession.signOut(); return; }
+
+  // "Pick a random spot" (no-results message, Filter Panel)
+  if (t.closest('[data-random-spot]')) { App.randomSpot(); return; }
+  if (accountMenuOpen() && !t.closest('#account-menu')) setAccountMenu(false);
 
   // Home Menu
   if (t.closest('#home-btn')) { setHomeMenu(!homeMenuOpen()); return; }
@@ -145,7 +180,12 @@ document.addEventListener('click', (e) => {
     if (t.closest('[data-sd-delete-cancel]')) { SpotDialog.confirming = false; SpotDialog.render(); return; }
     if (t.closest('[data-sd-delete-confirm]')) {
       const s = Store.getSpot(SpotDialog.id);
-      Store.deleteSpot(SpotDialog.id);
+      if (!Store.isOwnSpot(s)) return;
+      Store.deleteSpot(SpotDialog.id).catch((err) => {
+        console.error('Could not delete spot', err);
+        App.refresh();
+        toast(`Could not delete “${s.name}”. Check your connection and try again.`);
+      });
       SpotDialog.close();
       toast(`Deleted “${s.name}”`);
       // Leave the details route without going "back" into a deleted spot.
@@ -155,15 +195,6 @@ document.addEventListener('click', (e) => {
       App.refresh();
       return;
     }
-    const rate = t.closest('[data-rate]');
-    if (rate) {
-      const id = rate.dataset.rate, v = Number(rate.dataset.value);
-      Store.setRating(id, Store.getRating(id) === v ? 0 : v);
-      SpotDialog.render();
-      App.renderBase(App.base, true);
-      $(`[data-rate="${id}"][data-value="${v}"]`).focus();
-      return;
-    }
   }
 
   // Favorite star (cards, dialog)
@@ -171,7 +202,8 @@ document.addEventListener('click', (e) => {
   if (fav) {
     e.stopPropagation();
     const id = fav.dataset.fav;
-    const { on } = App.toggleFav(id);
+    const { on, needsLogin } = App.toggleFav(id);
+    if (needsLogin) { toast('Log in to save favorites.', { href: '#login', label: 'Log in' }); return; }
     toast(on ? 'Added to Favorites' : 'Removed from Favorites');
     const again = $(`#spot-dialog [data-fav="${id}"]`) || $(`#app [data-fav="${id}"]`);
     if (again) again.focus();
@@ -197,7 +229,6 @@ document.addEventListener('click', (e) => {
     const f = Store.getFilters();
     f.groupSize = qg.dataset.quickGroup;
     Store.setFilters(f);
-    if (Store.isActive(f)) Store.pushHistory(f);
     App.refresh();
     const again = $(`[data-quick-group="${qg.dataset.quickGroup}"]`); again && again.focus();
     return;
@@ -207,60 +238,34 @@ document.addEventListener('click', (e) => {
   const chip = t.closest('[data-start-chip]');
   if (chip) {
     const k = chip.dataset.startChip, sel = StartState.selected;
-    sel.has(k) ? sel.delete(k) : sel.add(k);
+    if (sel.has(k)) sel.delete(k);
+    else {
+      sel.add(k);
+      // Indoors and Outdoors are one choice: picking one un-picks the other.
+      if (k === 'indoors') sel.delete('outdoors');
+      if (k === 'outdoors') sel.delete('indoors');
+    }
     App.refresh();
     $(`[data-start-chip="${k}"]`).focus();
     return;
   }
   if (t.closest('#go-btn')) {
-    const f = Store.emptyFilters();
-    StartState.selected.forEach((k) => { if (k === 'indoors') f.indoors = true; else f.features[k] = true; });
-    Store.setFilters(f);
-    Store.pushHistory(f);
+    Store.setFilters(startFilters());
     App.go('list');
     return;
   }
-  if (t.closest('#random-btn')) {
-    const all = Store.allSpots();
-    const pick = all[Math.floor(Math.random() * all.length)];
-    App.go('list');
-    setTimeout(() => App.go('spot-' + pick.id), 60);
-    return;
-  }
-
-  // List
-  if (t.closest('[data-restore-spots]')) { Store.restoreSampleSpots(); App.refresh(); toast('Sample spots restored'); return; }
+  if (t.closest('#random-btn')) { App.randomSpot(Store.filtered(startFilters())); return; }
 
   // Favorites page
   const unfav = t.closest('[data-unfav]');
   if (unfav) { App.toggleFav(unfav.dataset.unfav); toast('Removed from Favorites'); return; }
-  const findSet = (el) => (el.dataset.kind === 'history' ? Store.history() : Store.savedFilters()).find((x) => x.id === (el.dataset.applySet || el.dataset.deleteSet || el.dataset.renameSave));
-  const apply = t.closest('[data-apply-set]');
-  if (apply) {
-    const set = findSet(apply);
-    Store.setFilters(set.filters);
-    Store.pushHistory(set.filters);
-    toast(set.name ? `Applied “${set.name}”` : 'Filters applied');
-    App.go('list');
-    return;
-  }
-  const ren = t.closest('[data-rename]');
-  if (ren) { FavState.renaming = ren.dataset.rename; App.refresh(); const i = $(`#rename-${ren.dataset.rename}`); i.focus(); i.select(); return; }
-  if (t.closest('[data-rename-cancel]')) { FavState.renaming = null; App.refresh(); return; }
-  const rs = t.closest('[data-rename-save]');
-  if (rs) { saveRename(rs); return; }
-  const del = t.closest('[data-delete-set]');
-  if (del) {
-    if (del.dataset.kind === 'history') Store.deleteHistory(del.dataset.deleteSet); else Store.deleteSaved(del.dataset.deleteSet);
-    App.refresh(); toast('Filter set deleted');
-    return;
-  }
-
   // Add a Spot
   const fl = t.closest('[data-add-floor]');
   if (fl) { AddState.floor = Number(fl.dataset.addFloor); AddState.pin = null; App.refresh(); $(`[data-add-floor="${fl.dataset.addFloor}"]`).focus(); return; }
   const ag = t.closest('[data-add-group]');
   if (ag) { AddState.groupSize = ag.dataset.addGroup; App.refresh(); $(`[data-add-group="${ag.dataset.addGroup}"]`).focus(); return; }
+  const st = t.closest('[data-add-setting]');
+  if (st) { AddState.setting = st.dataset.addSetting; App.refresh(); $(`[data-add-setting="${st.dataset.addSetting}"]`).focus(); return; }
   const tag = t.closest('[data-add-tag]');
   if (tag) { const k = tag.dataset.addTag; AddState.tags[k] = !AddState.tags[k]; App.refresh(); $(`[data-add-tag="${k}"]`).focus(); return; }
   if (t.closest('[data-add-cancel]')) { AddState.reset(); App.go('list'); return; }
@@ -275,29 +280,10 @@ document.addEventListener('click', (e) => {
   }
 });
 
-function saveRename(btn) {
-  const id = btn.dataset.renameSave;
-  const name = $(`#rename-${id}`).value.trim();
-  if (!name) { toast('Type a name first.'); return; }
-  if (btn.dataset.kind === 'history') Store.renameHistory(id, name); else Store.renameSaved(id, name);
-  FavState.renaming = null;
-  App.refresh();
-  toast('Renamed');
-}
-
 /* ---------------- Inputs ---------------- */
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.closest('#filter-panel')) { FilterPanel.handleChange(e); return; }
-  if (t.id === 'student-select') {
-    Store.setStudent(Number(t.value));
-    App.loadShared().then(() => {
-      const me = Store.currentStudent();
-      if (me) toast(`Showing favorites for ${me.display_name}`);
-      const sel = $('#student-select'); if (sel) sel.focus();
-    });
-    return;
-  }
   if (t.id === 'sort-select') { Store.setPref('sort', t.value); App.refresh(); $('#sort-select').focus(); return; }
   if (t.id === 'add-building') {
     AddState.building = t.value;
@@ -324,10 +310,32 @@ document.addEventListener('input', (e) => {
 });
 
 /* ---------------- Add a Spot submit ---------------- */
-document.addEventListener('submit', (e) => {
+/** Plain-words reason a spot didn't save, so the toast says what to fix
+    instead of always blaming the connection. Full details go to the console. */
+function spotSaveError(err) {
+  const msg = String((err && err.message) || err || '');
+  const code = err && err.code;
+  const fix = 'Run supabase/migrations/20261106060000_fix_add_spot.sql in the Supabase SQL Editor.';
+  if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+    return 'Could not reach the database. Check your connection and try again.';
+  }
+  if (/isn't in the database yet/.test(msg)) return `Could not save your spot: ${msg.replace(/ Apply .*$/, '')} ${fix}`;
+  if (code === '42501' || /row-level security|permission denied/i.test(msg)) {
+    return `Could not save your spot: the database doesn't allow it yet. ${fix}`;
+  }
+  if (code === 'PGRST204' || code === '42703' || code === '23503' || code === '42883') {
+    return `Could not save your spot: the database is missing a part this page needs. ${fix}`;
+  }
+  if (code === '23505') return `Could not save your spot: the database's id counter is behind. ${fix}`;
+  if (code === 'PGRST301' || /jwt/i.test(msg)) return 'Your login has expired. Log out, log back in, and try again.';
+  return `Could not save your spot to the database: ${msg || 'unknown error'}`;
+}
+
+document.addEventListener('submit', async (e) => {
   if (e.target.id !== 'add-form') return;
   e.preventDefault();
   const s = AddState;
+  if (s.saving) return;
   s.errors = {};
   if (!s.name.trim()) s.errors.name = 'Enter a name for this spot.';
   if (!s.building) s.errors.location = 'Choose a building.';
@@ -338,17 +346,32 @@ document.addEventListener('submit', (e) => {
     (s.errors.name ? $('#add-name') : $('#add-building')).focus();
     return;
   }
+  if (Store.needsLogin()) { toast('Log in to add a spot for your team.', { href: '#login', label: 'Log in' }); return; }
   const features = {};
-  FEATURES.forEach((f) => { features[f.key] = !!s.tags[f.key]; });
-  const saved = Store.addUserSpot({
-    name: s.name.trim(), building: s.building, floor: s.floor, room: '', position: s.pin,
-    features, groupSize: s.groupSize, busyness: 'Moderate', description: s.description.trim(),
-  });
+  FILTER_FEATURES.forEach((f) => { features[f.key] = !!s.tags[f.key]; });
+  features.outdoors = s.setting === 'outdoors';
+  const submitBtn = e.target.querySelector('[type="submit"]');
+  s.saving = true;
+  submitBtn.disabled = true;
+  let saved;
+  try {
+    saved = await Store.addUserSpot({
+      name: s.name.trim(), building: s.building, floor: s.floor, room: '', position: s.pin,
+      features, groupSize: s.groupSize, busyness: 'Moderate', description: s.description.trim(),
+    });
+  } catch (err) {
+    console.error('Could not save spot', err);
+    toast(spotSaveError(err), { duration: 9000 });
+    return;
+  } finally {
+    s.saving = false;
+    if (submitBtn.isConnected) submitBtn.disabled = false;
+  }
   // Make sure the new spot is visible in the list.
   if (!Store.matches({ ...saved }, Store.getFilters())) Store.clearFilters();
   App.flashId = saved.id;
   AddState.reset();
-  toast(`Added “${saved.name}” to your spots`);
+  toast(Store.sharedStatus() === 'ok' ? `Added “${saved.name}” for your whole team` : `Added “${saved.name}” on this device`);
   App.go('list');
 });
 
@@ -356,26 +379,54 @@ document.addEventListener('submit', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (homeMenuOpen()) { setHomeMenu(false); $('#home-btn').focus(); return; }
+    if (accountMenuOpen()) { setAccountMenu(false); $('#account-btn').focus(); return; }
     if (!$('#filter-panel').hidden) { FilterPanel.close(); return; }
     if (SpotDialog.id) { App.closeSpot(); return; }
-    if ($('.map-popup')) { App.go('map'); return; }
+    if ($('#map-selected')) { App.go('map'); return; }
   }
   // Enter / Space on cards, map buildings and markers
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-open-spot]:not(button), [data-building]')) {
     e.preventDefault();
-    e.target.click();
-  }
-  if (e.key === 'Enter' && e.target.id === 'fp-save-name') { e.preventDefault(); FilterPanel.confirmSave(); }
-  if (e.key === 'Enter' && e.target.id && e.target.id.startsWith('rename-')) {
-    e.preventDefault();
-    saveRename($(`[data-rename-save="${e.target.id.slice(7)}"]`));
+    // SVG building groups do not implement HTMLElement.click().
+    e.target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   }
   // Arrow keys inside the Home Menu
   if (homeMenuOpen() && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
     e.preventDefault();
-    const items = $$('.home-item'); const i = items.indexOf(document.activeElement);
+    const items = $$('#home-menu .menu-item'); const i = items.indexOf(document.activeElement);
     items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
   }
 });
+
+/* ---------------- Mobile: swipe a sheet down to close it ---------------- */
+(() => {
+  let drag = null;
+  document.addEventListener('touchstart', (e) => {
+    const sheet = e.target.closest('.sheet');
+    if (!sheet || window.innerWidth >= 760) return;
+    // Only from the grip / header, or from the body when it is already scrolled to the top.
+    const body = $('.sheet-body', sheet);
+    const fromHead = !!e.target.closest('.sheet-grip, .sheet-head');
+    if (!fromHead && !(e.target.closest('.sheet-body') && body.scrollTop <= 0)) return;
+    drag = { sheet, y0: e.touches[0].clientY, dy: 0, fromHead };
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!drag) return;
+    drag.dy = Math.max(0, e.touches[0].clientY - drag.y0);
+    if (!drag.fromHead && drag.dy < 12) return;
+    drag.sheet.style.transition = 'none';
+    drag.sheet.style.transform = `translateY(${drag.dy}px)`;
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (!drag) return;
+    const { sheet, dy } = drag;
+    drag = null;
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    if (dy < 90) return;
+    if (sheet.id === 'filter-panel') FilterPanel.close();
+    else if (SpotDialog.id) App.closeSpot();
+  });
+})();
 
 App.init();
