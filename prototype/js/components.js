@@ -294,11 +294,11 @@ let toastTimer;
 function toast(msg, action) {
   const t = $('#toast');
   t.textContent = msg;
-  if (action) t.insertAdjacentHTML('beforeend', ` <a class="toast-action" href="${action.href}">${esc(action.label)}</a>`);
+  if (action && action.href) t.insertAdjacentHTML('beforeend', ` <a class="toast-action" href="${action.href}">${esc(action.label)}</a>`);
   t.hidden = false;
   t.classList.add('is-on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.classList.remove('is-on'); setTimeout(() => { t.hidden = true; }, 250); }, action ? 5000 : 2600);
+  toastTimer = setTimeout(() => { t.classList.remove('is-on'); setTimeout(() => { t.hidden = true; }, 250); }, (action && action.duration) || (action ? 5000 : 2600));
 }
 
 /* ---------------- Sheets (shared open/close) ---------------- */
