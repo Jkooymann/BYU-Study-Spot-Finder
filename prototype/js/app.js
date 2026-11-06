@@ -88,7 +88,7 @@ const App = {
     if (wrap && wrap.scrollWidth > wrap.clientWidth) {
       const focus = $('.bldg.is-target .bldg-shape') || $('[data-building="hbll"] .bldg-shape');
       const scale = wrap.scrollWidth / CAMPUS.w;
-      if (focus) wrap.scrollLeft = (Number(focus.getAttribute('x')) + Number(focus.getAttribute('width')) / 2) * scale - wrap.clientWidth / 2;
+      if (focus) wrap.scrollLeft = (focus.getBBox().x + focus.getBBox().width / 2) * scale - wrap.clientWidth / 2;
     }
     // Selected spot on the map: bring its card and the highlighted building into view.
     if (!keepScroll && h.startsWith('map-spot-') && $('#map-selected')) $('#map-selected').scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -387,7 +387,8 @@ document.addEventListener('keydown', (e) => {
   // Enter / Space on cards, map buildings and markers
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-open-spot]:not(button), [data-building]')) {
     e.preventDefault();
-    e.target.click();
+    // SVG building groups do not implement HTMLElement.click().
+    e.target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   }
   // Arrow keys inside the Home Menu
   if (homeMenuOpen() && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {

@@ -85,3 +85,28 @@ Python Playwright and Chromium (`CHROMIUM_PATH` can override `/usr/bin/chromium`
 `TEST_BASE_URL` can override the local server URL; `CONFIRM=1` simulates email
 confirmation being on). The checks replace `js/db.js` with an in-memory fake and
 block external requests, so no real accounts or favorites are changed.
+
+## Campus overview map
+
+`js/campus-map.js` defines the north-up exterior footprints, label/badge anchors,
+and SVG landscape in one 900 × 850 illustration coordinate system. The overview
+follows the supplied BYU campus-map screenshots: library and WSC in the center,
+Tanner/Talmage/JKB to the northwest, the science buildings to the south, and lawns,
+walkways, roads, fields, and muted nearby landmarks for orientation. It is an
+approximate illustration rather than surveyed geometry or a live navigation map.
+It uses local vectors and has no map API, tile server, API key, or network dependency.
+
+The 17 existing building IDs still drive spot counts, filter highlighting, the
+building directory, and links into the existing floor views. Background landmarks
+are noninteractive orientation aids; their study spots/floors are not added here.
+Floor plans remain unchanged and should be developed separately. When adding a
+selectable building to `BUILDINGS`, add its footprint and label/badge anchors to
+`CAMPUS_FOOTPRINTS`. Do not mix illustration coordinates with the lat/lng data.
+On phones the overview scrolls horizontally and centers on the library or selected
+building. Keyboard users can focus buildings and activate them with Enter or Space.
+
+With the prototype served on port 8000, run `python3 prototype/tests/map_flow.py`
+from the repository root (Python Playwright + Chromium; `CHROMIUM_PATH` and
+`TEST_BASE_URL` are supported). It checks exterior paths, all 17 keyboard links,
+mouse navigation, selected-spot highlighting, filters, mobile overflow/centering,
+and explicit/automatic dark mode. External requests are blocked during testing.

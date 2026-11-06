@@ -58,13 +58,10 @@ Pages.start = () => {
 };
 
 /* ---------------- Page 2: Campus Map ---------------- */
-// Buildings are placed from their real coordinates (lat/lng in data.js).
-const CAMPUS = { w: 800, h: 624, lng0: -111.6540, lng1: -111.6443, lat0: 40.2452, lat1: 40.2510 };
+// Exterior footprints and background share one reference-based SVG coordinate system.
 function mapBox(b) {
-  const [w, h] = b.size, [nx, ny] = b.nudge || [0, 0];
-  const cx = ((b.lng - CAMPUS.lng0) / (CAMPUS.lng1 - CAMPUS.lng0)) * CAMPUS.w + nx;
-  const cy = ((CAMPUS.lat1 - b.lat) / (CAMPUS.lat1 - CAMPUS.lat0)) * CAMPUS.h + ny;
-  return { x: cx - w / 2, y: cy - h / 2, w, h, cx, cy };
+  const footprint = CAMPUS_FOOTPRINTS[b.id];
+  return { ...footprint, cx: footprint.label[0], cy: footprint.label[1] };
 }
 
 Pages.map = (spotId) => {
@@ -90,15 +87,15 @@ Pages.map = (spotId) => {
       target && target.building === b.id ? 'is-target' : '',
     ].join(' ');
     const n = active ? c.match : c.total;
-    const fs = m.w < 60 ? 13 : m.w < 80 ? 15 : 18;
+    const fs = m.font || 14;
     return `<g class="bldg ${state}" data-building="${b.id}" tabindex="0" role="button"
         aria-label="${esc(b.name)}: ${active ? `${c.match} of ${c.total} spots match` : plural(c.total, 'study spot')}. Open floor view.">
       <title>${esc(b.name)}</title>
-      <rect class="bldg-shadow" x="${m.x + 3}" y="${m.y + 4}" width="${m.w}" height="${m.h}" rx="8"/>
-      <rect class="bldg-shape" x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="8"/>
+      <path class="bldg-shadow" d="${m.d}" fill-rule="evenodd" transform="translate(2 3)"/>
+      <path class="bldg-shape" d="${m.d}" fill-rule="evenodd"/>
       <text class="bldg-short" x="${m.cx}" y="${m.cy + fs * 0.35}" text-anchor="middle" style="font-size:${fs}px">${b.short}</text>
-      ${n > 0 ? `<g class="bldg-badge"><circle cx="${m.x + m.w - 2}" cy="${m.y + 2}" r="11"/><text x="${m.x + m.w - 2}" y="${m.y + 6.5}" text-anchor="middle">${n}</text></g>` : ''}
-      ${target && target.building === b.id ? `<g class="map-pin" transform="translate(${m.cx} ${m.y - 4})"><path d="M0 0c-7-8-11-13-11-18a11 11 0 0 1 22 0c0 5-4 10-11 18z"/><circle cy="-18" r="4"/></g>` : ''}
+      ${n > 0 ? `<g class="bldg-badge"><circle cx="${m.badge[0]}" cy="${m.badge[1]}" r="11"/><text x="${m.badge[0]}" y="${m.badge[1] + 4}" text-anchor="middle">${n}</text></g>` : ''}
+      ${target && target.building === b.id ? `<g class="map-pin" transform="translate(${m.badge[0] - 16} ${m.badge[1] - 8})"><path d="M0 0c-7-8-11-13-11-18a11 11 0 0 1 22 0c0 5-4 10-11 18z"/><circle cy="-18" r="4"/></g>` : ''}
     </g>`;
   }).join('');
 
@@ -127,17 +124,19 @@ Pages.map = (spotId) => {
     ${toolbar()}
     ${active && !anyMatch ? noResults() : ''}
     ${selected}
-    <div class="map-wrap">
+    <div class="campus-map-heading"><span>${icon('pin')}BYU · Provo, Utah</span><span>North up · Campus overview</span></div>
+    <div class="map-wrap" tabindex="0" role="region" aria-label="Scrollable campus map" aria-describedby="campus-map-help">
       <svg class="campus-map" viewBox="0 0 ${CAMPUS.w} ${CAMPUS.h}" role="group" aria-label="Map of BYU campus buildings with study spots">
         <rect class="map-ground" x="0" y="0" width="${CAMPUS.w}" height="${CAMPUS.h}" rx="18"/>
+        ${campusBackdrop()}
         <g class="map-compass" transform="translate(${CAMPUS.w - 34} ${CAMPUS.h - 34})"><circle r="16"/><path d="M0 -10 5 5 0 2-5 5z"/><text y="-21" text-anchor="middle">N</text></g>
         ${buildingSvg}
       </svg>
     </div>
-    <p class="map-legend">${active
+    <p class="map-legend" id="campus-map-help">${active
       ? '<span class="legend-dot legend-match"></span>Has matching spots <span class="legend-dot legend-dim"></span>No matches'
       : '<span class="legend-dot legend-has"></span>Has study spots <span class="legend-dot legend-dim"></span>No spots yet'}
-      <span class="legend-note">Buildings are placed where they are on campus. Shapes are simplified.<span class="map-pan-hint"> Swipe the map to see more.</span></span></p>
+      <span class="legend-note">Reference-based campus overview; building outlines and paths are approximate. Muted landmarks are shown for orientation.<span class="map-pan-hint"> Swipe the map to see more.</span></span></p>
     <h2 class="section-h">All buildings</h2>
     <div class="building-grid">
       ${BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => {
@@ -187,7 +186,7 @@ Pages.building = (buildingId, floorArg) => {
     </div>
     <div class="floorplan-card">
       ${floorPlanSvg(b.id, floor, items)}
-      <p class="map-legend">${active
+      <p class="map-legend" id="campus-map-help">${active
         ? `<span class="legend-dot legend-match"></span>Glowing = matches your filters (${matchCount}) <span class="legend-dot legend-dim"></span>Gray = doesn't match`
         : '<span class="legend-dot legend-match"></span>Tap a glowing marker to see the spot'}</p>
     </div>
