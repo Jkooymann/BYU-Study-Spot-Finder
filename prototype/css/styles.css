@@ -306,6 +306,23 @@ button { cursor: pointer; }
 .group-opt.is-on .ic { color: var(--primary); }
 @media (min-width: 560px) { .group-picker { grid-template-columns: repeat(4, 1fr); } }
 .form .group-picker { grid-template-columns: repeat(3, 1fr); }
+/* Busyness picker: each option uses its badge color from the spot list */
+.busy-picker { background: var(--surface-2); }
+.busy-opt { min-width: 0; }
+@media (max-width: 559px) { .form .busy-picker { grid-template-columns: 1fr; } }
+.busy-opt { --busy-c: var(--busy-moderate); background: color-mix(in srgb, var(--busy-c) 14%, transparent); }
+.busy-opt.busy-empty { --busy-c: var(--busy-empty); }
+.busy-opt.busy-busy { --busy-c: var(--busy-busy); }
+.busy-opt .busy-bars { grid-row: 1 / 3; height: 18px; }
+.busy-opt .busy-bars i { width: 5px; }
+.busy-opt .busy-bars i:nth-child(1) { height: 7px; } .busy-opt .busy-bars i:nth-child(2) { height: 12px; } .busy-opt .busy-bars i:nth-child(3) { height: 18px; }
+.busy-opt:hover { background: color-mix(in srgb, var(--busy-c) 24%, transparent); }
+.busy-opt.is-on { background: var(--busy-c); border-color: var(--busy-c); color: var(--surface); }
+.busy-opt.is-on .group-opt-hint { color: var(--surface); opacity: .9; }
+.busy-opt.is-on .busy-bars i { background: color-mix(in srgb, var(--surface) 40%, transparent); }
+.busy-opt.is-on.busy-empty .busy-bars i:nth-child(1),
+.busy-opt.is-on.busy-moderate .busy-bars i:nth-child(-n+2),
+.busy-opt.is-on.busy-busy .busy-bars i { background: var(--surface); }
 .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 6px; border-radius: var(--r); background: var(--surface-2); }
 .seg-opt { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 8px; border-radius: 12px; border: 1.5px solid transparent; background: transparent; font-weight: 650; font-size: .92rem; }
 .seg-opt .ic { width: 18px; height: 18px; color: var(--primary); }

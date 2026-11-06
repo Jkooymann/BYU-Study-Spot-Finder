@@ -41,6 +41,7 @@ const GROUP_SIZES = [
 ];
 
 const BUSYNESS = ['Usually empty', 'Moderate', 'Usually busy'];
+const BUSYNESS_HINTS = { 'Usually empty': 'Easy to find a seat', Moderate: 'Some seats open', 'Usually busy': 'Hard to find a seat' };
 
 /* amenity_id in Supabase for each feature tag (Outdoors is study_spot.is_indoors). */
 const FEATURE_AMENITY_IDS = {
