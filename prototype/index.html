@@ -19,7 +19,11 @@
   <div id="spot-dialog" class="sheet sheet-spot" role="dialog" aria-modal="true" aria-labelledby="sd-title" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <!-- Order matters: supabase → data → db → store → components → pages → app -->
+  <!-- AI spot suggestions (js/recommend.js): button + panel, on every page -->
+  <button type="button" id="ai-fab" class="ai-fab" aria-expanded="false" aria-controls="ai-panel" aria-label="Suggest spots based on my favorites"></button>
+  <section id="ai-panel" class="ai-panel" role="dialog" aria-labelledby="ai-title" aria-live="polite" hidden></section>
+
+  <!-- Order matters: supabase → data → db → store → components → pages → recommend → app -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script src="js/supabase-config.js"></script>
   <script src="js/data.js"></script>
@@ -29,6 +33,7 @@
   <script src="js/campus-map.js"></script>
   <script src="js/pages.js"></script>
   <script src="js/account.js"></script>
+  <script src="js/recommend.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -186,9 +186,28 @@ const DB = (() => {
     return data;
   }
 
+  /* ---------------------------------------------------------------------
+     AI recommendations (supabase/functions/recommend-spots). The function
+     reads the student's favorites and every spot itself; spotIds is the list
+     of study_spot_ids this page can show, so it never suggests one we can't open.
+     Resolves to the function's answer, e.g.
+       { status: 'ok', cached, recommendations: [{ spot_id, reason }] }
+       { status: 'no_favorites' | 'no_candidates' | 'login_required' | 'rate_limited' | 'error' }
+     --------------------------------------------------------------------- */
+  async function recommendSpots(spotIds) {
+    const { data, error } = await client.functions.invoke('recommend-spots', { body: { spot_ids: spotIds } });
+    if (!error) return data;
+    // Non-2xx answers (429 rate limit, 401 login) still carry a JSON body.
+    const res = error.context;
+    if (res && typeof res.json === 'function') {
+      try { const body = await res.json(); if (body && body.status) return body; } catch (e) { /* not JSON */ }
+    }
+    throw error;
+  }
+
   return {
     ready: !!client, students, favoriteSpotIds, addFavorite, removeFavorite,
     buildings, studentSpots, addSpot, deleteSpot,
-    signUp, signIn, signOut, currentStudent,
+    signUp, signIn, signOut, currentStudent, recommendSpots,
   };
 })();

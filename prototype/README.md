@@ -16,6 +16,7 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (active filters, and added spots when the database is off). Also holds the filter-matching logic. |
 | `js/components.js` | Reusable pieces: top bar + ☰ menu + account dropdown, page header, no-results message, chips, spot card, busyness badge, group-size and indoors/outdoors pickers, floor plan, Filter Panel, Spot Details, toast. |
 | `js/pages.js` | The pages: Get Started, Campus Map, Building Floor View, Study Spot List, Favorites, Add a Spot. |
+| `js/recommend.js` | The ✨ **Suggest spots** button (bottom-right of every page) and its panel of AI picks. |
 | `js/app.js` | Hash router and all click / keyboard handling. |
 
 ## Pages (URL hash)
@@ -55,6 +56,48 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 - If the key is missing or the database can't be reached, the site falls back to saving favorites and new spots on your device and says so on the Favorites and Add a Spot pages.
 - Still demo-level security: the favorites policies in `*_allow_demo_favorites.sql` let anyone change any row. They should be tightened to `auth.uid()` so students can only change their own favorites.
 
+## AI recommendations (✨ Suggest spots)
+
+A button in the bottom-right corner of every page suggests 3–5 study spots based on
+the spots the student saved as favorites. Each suggestion has a one-line reason and
+opens that spot's details.
+
+- **Where the AI runs.** `supabase/functions/recommend-spots/index.ts`, a Supabase
+  Edge Function, calls Google Gemini (free tier) with the `GEMINI_API_KEY` secret. The
+  browser never sees the key. Default model: `gemini-flash-latest`, falling back to
+  `gemini-flash-lite-latest` if the first is out of quota. Set a `GEMINI_MODEL` secret to
+  pin a specific model.
+- **Works while spots change.** On every request the function reads the student's
+  favorites and every spot (name, building, floor, indoors, noise, busyness, group size,
+  tags, description) live from the database. Nothing about spots is hard-coded. Gemini
+  may only pick from the spot ids it is sent, and every id it returns is checked before
+  it reaches the page; the page then skips any spot it can't show. With lots of spots,
+  the 120 closest matches to the favorites are sent.
+- **No favorites** (or only favorites of deleted spots): the panel asks the student to
+  save some first and the AI is not called. Logged-out visitors are asked to log in.
+- **Free-tier protection.** Answers are cached in the `ai_recommendation` table: the same
+  favorites and the same spots reuse the last answer for 7 days (editing a spot's details
+  counts as a change). Fresh AI calls are limited to 8 per student per hour, 25 per
+  student per day and 200 for the whole site per day. Change these with the secrets
+  `AI_USER_HOURLY_LIMIT`, `AI_USER_DAILY_LIMIT` and `AI_SITE_DAILY_LIMIT`. When a limit or
+  Gemini's own quota is hit, the panel shows a friendly "try again later" message.
+
+### Set it up (once)
+
+1. **Table.** Paste `supabase/migrations/20261106220000_ai_recommendations.sql` into
+   Supabase → SQL Editor → New query → Run. It should print "ai_recommendation table ready".
+2. **Secret.** Supabase → Edge Functions → Secrets: `GEMINI_API_KEY` (from Google AI Studio).
+3. **Deploy the function**, either way:
+   - *Dashboard:* Edge Functions → Deploy a new function → Via Editor. Name it exactly
+     `recommend-spots`, replace the sample code with all of
+     `supabase/functions/recommend-spots/index.ts`, and deploy. Then open the function's
+     settings and turn **off** "Verify JWT" (the function checks the login itself, and the
+     check at the gateway can reject the site's new-style publishable key).
+   - *Command line:* `npx supabase login`, `npx supabase link --project-ref hpptrcuconnytcdqnicx`,
+     then `npx supabase functions deploy recommend-spots --no-verify-jwt` from the repository root.
+4. Log in on the site, favorite a spot or two, and click ✨. If it says it couldn't get
+   suggestions, check Edge Functions → recommend-spots → Logs.
+
 ## Accounts
 
 Visitors land on `#start` and can use the whole site without logging in. The
@@ -79,7 +122,8 @@ Visitors land on `#start` and can use the whole site without logging in. The
 ### Browser checks
 
 With the prototype server running on port 8000, run
-`python3 prototype/tests/account_flow.py` and `python3 prototype/tests/ui_flow.py`
+`python3 prototype/tests/account_flow.py`, `python3 prototype/tests/ui_flow.py` and
+`python3 prototype/tests/recommend_flow.py`
 from the repository root. This requires
 Python Playwright and Chromium (`CHROMIUM_PATH` can override `/usr/bin/chromium`;
 `TEST_BASE_URL` can override the local server URL; `CONFIRM=1` simulates email
