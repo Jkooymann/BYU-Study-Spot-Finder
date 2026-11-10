@@ -66,7 +66,7 @@ type Spot = {
 };
 type Pick = { spot_id: number; reason: string };
 
-const SPOT_SELECT = 'study_spot_id, spot_name, floor_number, location_description, description, is_indoors, '
+const SPOT_SELECT = 'study_spot_id, spot_name, floor_number, description, is_indoors, '
   + 'max_group_size, noise_level, typical_busyness_level, '
   + 'building(building_code, building_name), study_spot_amenity(amenity(amenity_name))';
 
