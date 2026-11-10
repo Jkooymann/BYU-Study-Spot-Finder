@@ -81,9 +81,8 @@ parts.append(entity("spot", "Study Spot", COL[1], T, [
     ("FK", "submitted_by_user_id", "int · null = sample", ""),
     ("", "spot_name", "text", ""),
     ("", "floor_number", "int", ""),
-    ("", "location_description", "text", ""),
+    ("", "description", "text · from Add a Spot form", ""),
     ("", "is_indoors", "boolean", ""),
-    ("", "seat_count", "int", ""),
     ("", "max_group_size", "int", ""),
     ("", "noise_level", "Silent/Quiet/Moderate/Loud", ""),
     ("", "typical_busyness_level", "Low/Moderate/High", ""),
@@ -94,18 +93,21 @@ parts.append(entity("spot", "Study Spot", COL[1], T, [
 ]))
 parts.append(entity("user", "Student User", COL[1], 620, [
     ("PK", "user_id", "int", ""),
+    ("FK", "auth_user_id", "uuid · Supabase login", ""),
     ("", "byu_net_id", "text · unique", ""),
     ("", "display_name", "text", ""),
     ("", "byu_email", "text", ""),
     ("", "account_created_at", "timestamp", ""),
 ]))
-parts.append(entity("rating", "Spot Rating", COL[0], 560, [
-    ("PK", "spot_rating_id", "int", ""),
+parts.append(entity("ai", "AI Recommendation", COL[0], 560, [
+    ("PK", "ai_recommendation_id", "int", ""),
     ("FK", "user_id", "int", ""),
-    ("FK", "study_spot_id", "int", ""),
-    ("", "star_rating", "int · 1 to 5", ""),
-    ("", "review_comment", "text · optional", ""),
-    ("", "rated_at", "timestamp", ""),
+    ("", "cache_key", "text", ""),
+    ("", "status", "pending/ok/error", ""),
+    ("", "recommendations", "jsonb · spot ids + reasons", ""),
+    ("", "model_name", "text", ""),
+    ("", "error_message", "text", ""),
+    ("", "created_at", "timestamp", ""),
 ]))
 parts.append(entity("ssa", "Study Spot Amenity", COL[2], T, [
     ("PK,FK", "study_spot_id", "int", ""),
@@ -145,9 +147,7 @@ rels = [
     rel([(R("user"), 660), (R("user") + 70, 660), (R("user") + 70, 450), (L("fav"), 450)], False, True,
         "favorites", "one-to-many", R("user") + 70, 560),
     rel([(R("user"), 760), (L("filter"), 760)], False, True, "saves", "one-to-many", mid(R("user"), L("filter")), 760 - 34),
-    rel([(L("user"), 720), (R("rating"), 720)], False, True, "writes", "one-to-many", mid(R("rating"), L("user")), 720 - 34),
-    rel([(L("spot"), 470), (L("bld") + W / 2, 470), (L("bld") + W / 2, E["rating"]["y"])], False, True,
-        "receives", "one-to-many", L("bld") + W / 2, 515),
+    rel([(L("user"), 720), (R("ai"), 720)], False, True, "receives", "one-to-many", mid(R("ai"), L("user")), 720 - 34),
 ]
 
 # Relationship key panel
@@ -155,13 +155,12 @@ kx, ky = COL[3], 300
 key_rows = [
     ("Building", "contains", "Study Spot", "one-to-many"),
     ("Student User", "submits", "Study Spot", "one-to-many"),
-    ("Student User", "writes", "Spot Rating", "one-to-many"),
-    ("Study Spot", "receives", "Spot Rating", "one-to-many"),
+    ("Student User", "receives", "AI Recommendation", "one-to-many"),
     ("Student User", "saves", "Saved Filter", "one-to-many"),
     ("Study Spot", "offers", "Amenity", "many-to-many*"),
     ("Student User", "favorites", "Study Spot", "many-to-many*"),
 ]
-kh = 70 + len(key_rows) * 46 + 200
+kh = 70 + len(key_rows) * 46 + 272
 key = [f'<rect x="{kx}" y="{ky}" width="{W}" height="{kh}" rx="8" class="keybox"/>',
        f'<text x="{kx+16}" y="{ky+30}" class="keyh">Relationships</text>']
 for i, (a, v, b, c) in enumerate(key_rows):
@@ -183,7 +182,10 @@ key.append(f'<text x="{kx+16}" y="{y}" class="kt"><tspan class="key pk">PK</tspa
 y += 26
 key.append(f'<text x="{kx+16}" y="{y}" class="kn">Spots with no submitted_by_user_id are the</text>')
 key.append(f'<text x="{kx+16}" y="{y+18}" class="kn">built-in sample spots. Busyness is a typical</text>')
-key.append(f'<text x="{kx+16}" y="{y+36}" class="kn">level, not live data.</text>')
+key.append(f'<text x="{kx+16}" y="{y+36}" class="kn">level, not live data. auth_user_id links to</text>')
+key.append(f'<text x="{kx+16}" y="{y+54}" class="kn">Supabase Auth (auth.users). AI Recommendation</text>')
+key.append(f'<text x="{kx+16}" y="{y+72}" class="kn">caches Gemini results; only the Edge Function</text>')
+key.append(f'<text x="{kx+16}" y="{y+90}" class="kn">reads or writes it.</text>')
 
 WIDTH, HEIGHT = COL[3] + W + 40, max(ky + kh, 860) + 40
 css = """
@@ -214,8 +216,8 @@ text{font-family:Inter,'Segoe UI',Helvetica,Arial,sans-serif}
 svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}">
 <style>{css}</style>
 <rect width="100%" height="100%" class="bg"/>
-<text x="40" y="52" class="h1">BYU Study Spot Finder · Starting ERD</text>
-<text x="40" y="80" class="sub">8 entities, 7 relationships. Each line is labeled with what it means and its cardinality; crow's foot = the “many” side.</text>
+<text x="40" y="52" class="h1">BYU Study Spot Finder · Current ERD</text>
+<text x="40" y="80" class="sub">8 entities, 6 relationships. Each line is labeled with what it means and its cardinality; crow's foot = the “many” side.</text>
 {chr(10).join(rels)}
 {chr(10).join(parts)}
 {chr(10).join(key)}

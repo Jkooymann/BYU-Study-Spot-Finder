@@ -1,6 +1,6 @@
 # BYU Study Spot Finder — front-end prototype
 
-Open `index.html` in any browser. No server, build step, or install needed.
+Serve this folder with a local web server (VS Code's Live Server "Go Live", or `python3 -m http.server 8000` from this folder) and open it in a browser. No build step or install needed.
 
 Favorite spots and spots you add on the Add a Spot page are saved in the team's Supabase database for the logged-in student, so everyone sees the added spots. Everything else is still saved only in your own browser.
 
@@ -41,7 +41,7 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 - Only the person who added a spot can delete it. Sample spots and other students' spots have no delete button.
 - The Campus Map places each building from its latitude/longitude in `data.js`; shapes are simplified. Buildings without spots are drawn dashed and invite people to add one.
 - The List sorts by Building or Least busy first (A–Z was removed).
-- User-added spots get a default busyness of "Moderate" because the form has no busyness field.
+- Add a Spot asks how busy the spot usually is and saves it to `study_spot.typical_busyness_level`.
 - Group size is shown as a large picker above the Map, Floor View, and List, and at the top of the Filter Panel.
 - To reset all user data, clear the site's localStorage (keys start with `byuStudySpots.`).
 
