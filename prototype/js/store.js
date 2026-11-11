@@ -108,13 +108,16 @@ const Store = (() => {
     if (!DB.ready) return;
     try {
       const inDataJs = new Set(SPOTS.map((s) => s.dbId));
-      // If spots can't load, keep favorites and login working.
-      const spots = DB.studentSpots().catch((e) => { console.error('Could not load added spots from Supabase', e); return []; });
       // Building ids for buildings added after the first six (matched by building code).
+      // These must be in place BEFORE spots load: each spot finds its building by this
+      // id, and a spot whose building isn't found yet is left off the site.
       const buildings = (DB.buildings ? DB.buildings() : Promise.resolve([]))
-        .catch((e) => { console.error('Could not load buildings from Supabase', e); return []; });
-      const [me, loaded, rows] = await Promise.all([DB.currentStudent(), spots, buildings]);
-      rows.forEach((r) => { const b = BUILDINGS.find((x) => x.short === r.building_code); if (b) b.dbId = r.building_id; });
+        .catch((e) => { console.error('Could not load buildings from Supabase', e); return []; })
+        .then((rows) => { rows.forEach((r) => { const b = BUILDINGS.find((x) => x.short === r.building_code); if (b) b.dbId = r.building_id; }); });
+      // If spots can't load, keep favorites and login working.
+      const spots = buildings.then(() => DB.studentSpots())
+        .catch((e) => { console.error('Could not load added spots from Supabase', e); return []; });
+      const [me, loaded] = await Promise.all([DB.currentStudent(), spots]);
       shared.spots = loaded.filter((s) => !inDataJs.has(s.dbId) && s.building);
       shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
       shared.me = me;
