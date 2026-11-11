@@ -68,6 +68,10 @@ const SETTINGS = [
    floors   floors with study space. For the newer buildings these are estimates;
             correct them if you know better. */
 const BUILDINGS = [
+  // Floor 1 is a temporary starting point pending the team's verified floor lists.
+  { id: 'rb', name: 'Richards Building', short: 'RB', floors: [1] },
+  { id: 'canc', name: 'Cannon Center', short: 'CANC', floors: [1] },
+  { id: 'mb', name: 'Music Building', short: 'MB', floors: [1] },
   // Initial floor lists for these new buildings; refine when floor references arrive.
   { id: 'arts', name: 'Arts Building', short: 'ARTS', floors: [1, 2, 3, 4] },
   { id: 'lsb', name: 'Life Sciences Building', short: 'LSB', floors: [1, 2, 3, 4, 5] },

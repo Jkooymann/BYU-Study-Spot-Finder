@@ -11,7 +11,7 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | `index.html` | The single page shell. Loads the CSS and scripts. |
 | `css/styles.css` | All styles. Colors are tokens at the top (primary navy, accent gold) with a dark-mode set. |
 | `js/supabase-config.js` | The Supabase project URL and publishable key. |
-| `js/data.js` | **The one mock data file.** 20 selectable buildings (with reference-based campus-map outlines), the filter options, and 26 study spots. Each spot's `dbId` is its `study_spot_id` in Supabase. |
+| `js/data.js` | **The one mock data file.** 23 selectable buildings (with reference-based campus-map outlines), the filter options, and 26 study spots. Each spot's `dbId` is its `study_spot_id` in Supabase. |
 | `js/db.js` | The only file that talks to Supabase: loads/adds/removes favorites, loads/adds/deletes student-added spots, and sign-up / log-in. |
 | `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (active filters, and added spots when the database is off). Also holds the filter-matching logic. |
 | `js/components.js` | Reusable pieces: top bar + ☰ menu + account dropdown, page header, no-results message, chips, spot card, busyness badge, group-size and indoors/outdoors pickers, floor plan, Filter Panel, Spot Details, toast. |
@@ -142,7 +142,7 @@ intentionally omitted so the building outlines and their relative positions lead
 approximate illustration rather than surveyed geometry or a live navigation map.
 It uses local vectors and has no map API, tile server, API key, or network dependency.
 
-The 20 building IDs still drive spot counts, filter highlighting, the
+The 23 building IDs still drive spot counts, filter highlighting, the
 building directory, and links into the existing floor views. Background landmarks
 are noninteractive orientation aids; their study spots/floors are not added here.
 Floor plans remain unchanged and should be developed separately. When adding a
@@ -194,3 +194,18 @@ Saving code to GitHub does not apply this SQL to the hosted database. No databas
 administration credentials are available in this workspace, so hosted writes for
 the new buildings have not been verified. Local pin creation/reload is covered by
 `python3 prototype/tests/empty_buildings.py`.
+
+## RB, CANC, and MB
+
+RB (Richards Building), CANC (Cannon Center), and MB (Music Building) are selectable
+on the campus map, in the building directory, filters, and Add a Spot. Their existing
+map footprints are reused for floor outlines; no other building outlines changed.
+Each starts with **Floor 1 only as a temporary placeholder**, not a verified total.
+Replace those lists when the team supplies the real floor labels.
+
+For shared spot saves, apply `20261111010000_add_rb_canc_music_building.sql` in
+Supabase's SQL Editor or the team's migration workflow, then reload. It adds missing
+building rows, leaves unverified database floor counts unset, and corrects MB's name
+while preserving an existing MB ID and its spots. Code publication does not apply
+this database migration. Browser tests cover local add/reload behavior; hosted writes
+require the database migration and have not been verified here.
