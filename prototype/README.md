@@ -209,3 +209,25 @@ building rows, leaves unverified database floor counts unset, and corrects MB's 
 while preserving an existing MB ID and its spots. Code publication does not apply
 this database migration. Browser tests cover local add/reload behavior; hosted writes
 require the database migration and have not been verified here.
+
+
+## Team-supplied floor labels
+
+`BUILDINGS[].floors` now uses the team's explicit lists for all 23 buildings.
+BNSN, ESC, JFSB, and JRCB have a **B** tab before their numbered floors. Floor
+views and Add a Spot share the same lists and the existing building silhouettes.
+An explicit link such as `#building-jfsb-fB` or `#add-jfsb-fB` selects the basement.
+There are no invented floor interiors or changes to campus-map geometry.
+
+The database column `study_spot.floor_number` remains an integer: the database
+adapter maps UI label **B** to **0** on save and back to B on load. Positive floors
+keep their existing numeric values. No schema conversion is required for basement
+saves. `20261111020000_team_floor_counts.sql` updates building count metadata,
+including basements, without changing any spot or coordinate. Apply it through the
+team's usual Supabase migration process. The seed file has the same metadata update.
+The earlier provisional floor-list notes above are superseded by these team lists.
+
+Checks: `python3 prototype/tests/verified_floors.py` (local server required;
+`TEST_BASE_URL` supported) verifies every supplied tab and basement pin add/reload.
+`node prototype/tests/basement_db.cjs` exercises the real DB adapter against an
+isolated fake client to verify basement serialization without shared writes.

@@ -38,7 +38,7 @@ const App = {
       const [buildingId, requestedFloor] = h.slice(4).split('-f');
       const b = buildingById(buildingId);
       if (b) {
-        const floor = b.floors.includes(Number(requestedFloor)) ? Number(requestedFloor) : b.floors[0];
+        const floor = b.floors.includes(parseFloor(requestedFloor)) ? parseFloor(requestedFloor) : b.floors[0];
         if (AddState.building !== b.id || requestedFloor) { AddState.building = b.id; AddState.floor = floor; AddState.pin = null; }
       }
       h = 'add'; history.replaceState(null, '', '#add');
@@ -266,7 +266,7 @@ document.addEventListener('click', (e) => {
   if (unfav) { App.toggleFav(unfav.dataset.unfav); toast('Removed from Favorites'); return; }
   // Add a Spot
   const fl = t.closest('[data-add-floor]');
-  if (fl) { AddState.floor = Number(fl.dataset.addFloor); AddState.pin = null; App.refresh(); $(`[data-add-floor="${fl.dataset.addFloor}"]`).focus(); return; }
+  if (fl) { AddState.floor = parseFloor(fl.dataset.addFloor); AddState.pin = null; App.refresh(); $(`[data-add-floor="${fl.dataset.addFloor}"]`).focus(); return; }
   const ag = t.closest('[data-add-group]');
   if (ag) { AddState.groupSize = ag.dataset.addGroup; App.refresh(); $(`[data-add-group="${ag.dataset.addGroup}"]`).focus(); return; }
   const ab = t.closest('[data-add-busy]');
