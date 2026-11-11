@@ -156,3 +156,44 @@ values
   ('LSB', 'Life Sciences Building', 5),
   ('EB', 'Engineering Building', 5)
 on conflict (building_code) do nothing;
+-- Activate these buildings for study-spot entry. Floor counts remain unknown
+-- until the team supplies verified floor lists; do not invent counts or IDs.
+insert into public.building (building_code, building_name)
+values ('RB', 'Richards Building'), ('CANC', 'Cannon Center'), ('MB', 'Music Building')
+on conflict (building_code) do nothing;
+
+-- Correct a previously misidentified MB without changing its ID or linked spots.
+update public.building set building_name = 'Music Building'
+where building_code = 'MB' and building_name is distinct from 'Music Building';
+
+-- Team-supplied floor counts, including the basement where present.
+-- B is stored as 0 in study_spot.floor_number and shown as Floor B in the UI.
+-- This changes metadata only; existing spots and coordinates are preserved.
+update public.building as b
+set floor_count = supplied.floor_count
+from (values
+  ('ARTS', 4),
+  ('BNSN', 6),
+  ('CANC', 1),
+  ('CB', 5),
+  ('CTB', 9),
+  ('EB', 5),
+  ('ESC', 7),
+  ('HBLL', 8),
+  ('HRCB', 2),
+  ('JFSB', 6),
+  ('JKB', 8),
+  ('JRCB', 6),
+  ('JSB', 3),
+  ('KMBL', 12),
+  ('LSB', 7),
+  ('MARB', 3),
+  ('MB', 4),
+  ('MCKB', 3),
+  ('RB', 3),
+  ('SNLB', 2),
+  ('TMCB', 8),
+  ('TNRB', 8),
+  ('WSC', 7)
+) as supplied(building_code, floor_count)
+where b.building_code = supplied.building_code;

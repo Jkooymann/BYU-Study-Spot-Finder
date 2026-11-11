@@ -158,9 +158,9 @@ Pages.building = (buildingId, floorArg) => {
   const f = Store.getFilters();
   const active = Store.isActive(f);
   const spots = Store.allSpots().filter((s) => s.building === b.id);
-  // Floor navigation exists before study spots are added, including empty levels.
-  const floors = Array.from(new Set([...b.floors, ...spots.map(s => s.floor)])).sort((a, b) => a - b);
-  let floor = Number(floorArg);
+  // Use the team-supplied floor list even when a floor has no spots yet.
+  const floors = b.floors;
+  let floor = parseFloor(floorArg);
   if (!floors.includes(floor)) {
     // Default to the first floor with a match, else the lowest floor.
     floor = (active && floors.find((fl) => spots.some((s) => s.floor === fl && Store.matches(s, f)))) || floors[0];
@@ -211,7 +211,7 @@ Pages.list = () => {
     body = noResults();
   } else if (sort === 'building') {
     const groups = BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name))
-      .map((b) => ({ b, list: spots.filter((s) => s.building === b.id).sort((x, y) => x.floor - y.floor || x.name.localeCompare(y.name)) }))
+      .map((b) => ({ b, list: spots.filter((s) => s.building === b.id).sort((x, y) => floorOrder(x.floor) - floorOrder(y.floor) || x.name.localeCompare(y.name)) }))
       .filter((g) => g.list.length);
     body = groups.map((g) => `<section class="list-group">
       <h2 class="group-h"><span class="group-h-code">${g.b.short}</span><a href="#building-${g.b.id}">${esc(g.b.name)}</a><span class="group-h-count">${plural(g.list.length, 'spot')}</span></h2>

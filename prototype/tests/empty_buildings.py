@@ -8,8 +8,9 @@ with sync_playwright() as p:
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.route('https://**/*', lambda route: route.abort())
     page.goto(BASE_URL + '/#map')
-    assert page.locator('.campus-map [data-building]').count() == 20
-    for building_id in ['arts', 'lsb', 'eb', 'cb', 'marb']:
+    assert page.locator('.campus-map [data-building]').count() == page.evaluate('BUILDINGS.length')
+    assert page.locator('[data-building="mb"]').get_attribute('aria-label').startswith('Music Building:')
+    for building_id in ['arts', 'lsb', 'eb', 'cb', 'marb', 'rb', 'canc', 'mb']:
         page.evaluate("App.go('map')")
         page.wait_for_selector('.campus-map')
         page.locator('[data-building="' + building_id + '"]').focus()
@@ -38,4 +39,4 @@ with sync_playwright() as p:
         assert page.locator('.fp-marker').count() == 1
     assert not errors, errors
     browser.close()
-    print('PASS: 20 clickable buildings; all floors in ARTS/LSB/EB/CB/MARB work without spots; selected-floor handoff, pin add and reload persistence passed locally')
+    print('PASS: All clickable buildings; all floors in ARTS/LSB/EB/CB/MARB/RB/CANC/MB work without spots; selected-floor handoff, pin add and reload persistence passed locally')
