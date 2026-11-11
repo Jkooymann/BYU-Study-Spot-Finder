@@ -11,7 +11,7 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | `index.html` | The single page shell. Loads the CSS and scripts. |
 | `css/styles.css` | All styles. Colors are tokens at the top (primary navy, accent gold) with a dark-mode set. |
 | `js/supabase-config.js` | The Supabase project URL and publishable key. |
-| `js/data.js` | **The one mock data file.** 23 selectable buildings (with reference-based campus-map outlines), the filter options, and 26 study spots. Each spot's `dbId` is its `study_spot_id` in Supabase. |
+| `js/data.js` | **The one mock data file.** 23 selectable buildings (with reference-based campus-map outlines) and the filter options. It has no built-in study spots: every spot comes from the Supabase database. (The browser tests use the old example spots in `tests/sample_spots.js`.) |
 | `js/db.js` | The only file that talks to Supabase: loads/adds/removes favorites, loads/adds/deletes student-added spots, and sign-up / log-in. |
 | `js/store.js` | Reads the mock data, keeps shared favorites from `db.js`, and saves the rest in `localStorage` (active filters, and added spots when the database is off). Also holds the filter-matching logic. |
 | `js/components.js` | Reusable pieces: top bar + ☰ menu + account dropdown, page header, no-results message, chips, spot card, busyness badge, group-size and indoors/outdoors pickers, floor plan, Filter Panel, Spot Details, toast. |
@@ -24,9 +24,9 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | Spec page | Route |
 |---|---|
 | 1 Get Started | `#start` |
-| 2 Campus Map | `#map`, or `#map-spot-s4` to show a spot's card above the map and highlight its building |
+| 2 Campus Map | `#map`, or `#map-spot-d27` to show a spot's card above the map and highlight its building |
 | 3 Building Floor View | `#building-hbll`, `#building-hbll-f3` |
-| 5 Spot Details | `#spot-s4` (opens over the page you came from) |
+| 5 Spot Details | `#spot-d27` (opens over the page you came from) |
 | 6 Menu | ☰ dropdown in the top bar on every page (the logo also goes to Get Started) |
 | 7 Study Spot List | `#list` |
 | 8 Filter Panel | side panel (desktop) / bottom sheet (mobile) on Map, Floor View, and List |

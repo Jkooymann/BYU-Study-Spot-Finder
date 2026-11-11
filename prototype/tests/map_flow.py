@@ -3,10 +3,12 @@ External requests are blocked; no shared data is changed.
 """
 import os
 from playwright.sync_api import sync_playwright
+from sample_spots import use_sample_spots
 BASE_URL = os.environ.get('TEST_BASE_URL', 'http://127.0.0.1:8000')
 with sync_playwright() as p:
  b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH', '/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  page=b.new_page(viewport={'width':1440,'height':1100});errors=[]
+ use_sample_spots(page)
  page.on('pageerror', lambda e: errors.append(str(e)))
  page.route('https://**/*',lambda r:r.abort())
  page.goto(BASE_URL + '/#map',wait_until='networkidle')
