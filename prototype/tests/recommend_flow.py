@@ -6,6 +6,7 @@ so no AI calls are made and external requests are blocked.
 """
 import os
 from playwright.sync_api import sync_playwright
+from sample_spots import use_sample_spots
 
 BASE_URL = os.environ.get('TEST_BASE_URL', 'http://127.0.0.1:8000')
 
@@ -44,6 +45,7 @@ const DB = (() => {
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH', '/usr/bin/chromium'), headless=True, args=['--no-sandbox'])
     page = b.new_page(); errors = []
+    use_sample_spots(page)
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.route('**/js/db.js', lambda r: r.fulfill(content_type='application/javascript', body=FAKE_DB))
     page.route('https://**/*', lambda r: r.abort())
