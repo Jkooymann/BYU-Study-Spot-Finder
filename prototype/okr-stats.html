@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OKR 1 stats (prototype)</title>
+  <!-- PROTOTYPE stand-in for the admin page. When the admin page exists, move the
+       panel there (see js/okr/okr-stats-panel.js) and delete this file. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body { background: var(--bg); margin: 0; padding: 24px 16px; }
+    .okr-page { max-width: 520px; margin: 0 auto; }
+    .okr-page a { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <main class="okr-page">
+    <p><a href="./">← Back to the site</a></p>
+    <div id="okr1-panel"></div>
+  </main>
+  <!-- This page only reads the numbers; it does not load the session tracker,
+       so viewing the stats doesn't create sessions. -->
+  <script src="js/supabase-config.js"></script>
+  <script src="js/okr/okr-api.js"></script>
+  <script src="js/okr/okr-stats-panel.js"></script>
+  <script>OKRStatsPanel.mount(document.getElementById('okr1-panel'));</script>
+</body>
+</html>
