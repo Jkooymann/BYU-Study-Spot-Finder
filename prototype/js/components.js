@@ -112,7 +112,7 @@ function accountControl(pageKey) {
   return `<div class="menu-wrap">
       <button id="account-btn" class="bar-btn account-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" title="${esc(me.display_name)}">${icon('user')}<span class="account-name">${esc(me.display_name)}</span>${icon('chevronDown', 'chev')}</button>
       <div id="account-menu" class="menu account-menu" role="menu" aria-label="Account" hidden>
-        <div class="menu-head"><span class="menu-head-label">Logged in as</span><strong>${esc(me.display_name)}</strong><span>${esc(me.byu_net_id)}@byu.edu</span></div>
+        <div class="menu-head"><span class="menu-head-label">Logged in as</span><strong>${esc(me.display_name)}</strong><span>${esc(me.email || `${me.byu_net_id}@byu.edu`)}</span></div>
         ${menuItem({ label: 'Log out', sub: 'Your favorites stay saved', ic: 'logout', attrs: 'data-sign-out' })}
       </div>
     </div>`;

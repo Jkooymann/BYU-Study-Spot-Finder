@@ -44,7 +44,7 @@ const DB = (() => {
     async signOut() { save('session', null); },
     async currentStudent() {
       const e = load('session', null); const u = load('users', []).find((x) => x.email === e);
-      return u ? { user_id: u.user_id, display_name: u.displayName, byu_net_id: u.netId } : null;
+      return u ? { user_id: u.user_id, display_name: u.displayName, byu_net_id: u.netId, email: u.email } : null;
     },
   };
 })();""".replace('CONFIRM_ON', CONFIRM)
@@ -121,10 +121,49 @@ with sync_playwright() as p:
     fill(); submit('Create account')
     assert 'already exists' in page.locator('#account-message').inner_text()
 
+    # Valid addresses with punctuation work end to end and show correctly in the menu
+    page.evaluate("App.go('signup')"); page.wait_for_selector('#signup-form')
+    fill(name="Seán O'Brien", net=" Sean.O'Brien+Study@BYU.edu ")
+    submit('Create account'); page.wait_for_url('**/#login'); page.wait_for_selector('.account-success')
+    call = page.evaluate("window.fakeCalls.filter((c) => c[0] === 'signUp').pop()[1]")
+    assert call['email'] == "sean.o'brien+study@byu.edu" and call['netId'] == "sean.o'brien+study", call
+    assert page.locator('#account-netid').input_value() == "sean.o'brien+study"
+    if CONFIRM == 'true':
+        assert "sean.o'brien+study@byu.edu" in page.locator('.account-success').inner_text()
+    page.locator('#account-password').fill('valid-password'); submit('Log in')
+    page.wait_for_url('**/#start'); page.wait_for_selector('#account-btn')
+    assert page.locator('#account-btn').inner_text() == "Seán O'Brien"
+    page.locator('#account-btn').click()
+    assert "sean.o'brien+study@byu.edu" in page.locator('#account-menu').inner_text()
+    page.locator('[data-sign-out]').click(); page.wait_for_selector('.login-btn:has-text("Log in")')
+
+    # Invalid period placement is caught in the form, before anything is sent
+    page.evaluate("App.go('signup')"); page.wait_for_selector('#signup-form')
+    sent = page.evaluate("window.fakeCalls.length")
+    for bad in ['jane.', '.jane', 'jane..doe@byu.edu']:
+        fill(net=bad); submit('Create account')
+        assert page.locator('#account-netid').get_attribute('aria-invalid') == 'true', bad
+        assert 'period' in page.locator('#netid-error').inner_text(), bad
+    assert page.evaluate("window.fakeCalls.length") == sent
+
+    # Server-side failures show a clear message without technical details
+    for raw, expected in [
+        ("Object.assign(new Error('Database error saving new user'), { code: 'unexpected_failure', status: 500 })", 'on our end'),
+        ("Object.assign(new Error('Error sending confirmation email'), { code: 'unexpected_failure', status: 500 })", 'confirmation email to new.person@byu.edu'),
+        ("Object.assign(new Error('Unable to validate email address: invalid format'), { code: 'validation_failed', status: 400 })", 'wasn’t accepted'),
+        ("Object.assign(new TypeError('Failed to fetch'), { name: 'AuthRetryableFetchError', status: 0 })", 'internet connection'),
+    ]:
+        page.evaluate("() => { DB.signUp = async () => { throw %s; }; }" % raw)
+        fill(net='new.person'); submit('Create account')
+        page.wait_for_selector('#account-message:not([hidden])')
+        text = page.locator('#account-message').inner_text()
+        assert expected in text, text
+        assert 'error' not in text.lower() and 'fetch' not in text.lower() and 'validate' not in text.lower(), text
+
     for width in [390, 1280]:
         page.set_viewport_size({'width': width, 'height': 850})
         page.evaluate("App.go('signup')"); page.wait_for_selector('#signup-form')
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     assert not errors, errors
-    print('PASS: open site, login prompt for favorites, validation, sign-up -> log in, name in corner, per-account favorites, reload, log out, duplicate account, mobile/desktop overflow; no uncaught errors')
+    print('PASS: open site, login prompt for favorites, validation, sign-up -> log in, name in corner, per-account favorites, reload, log out, duplicate account, punctuation in emails, invalid periods, friendly server errors, mobile/desktop overflow; no uncaught errors')
     b.close()
