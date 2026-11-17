@@ -1,5 +1,5 @@
 /* =========================================================================
-   OKR 1 prototype: stats panel.
+   OKR 1: stats panel.
    A self-contained component. To show it on any page (e.g. the admin page):
 
      <div id="okr1-panel"></div>
@@ -55,7 +55,7 @@ const OKRStatsPanel = (() => {
     const target = Number(s.target_percent || 80);
     if (s.percent_under_10 === null || s.percent_under_10 === undefined) {
       return `<p class="okr1-big"><span class="okr1-num">—</span></p>
-        <p class="okr1-goal">No sessions to count yet. A session counts once it has ended and it isn't the user's first.
+        <p class="okr1-goal">No sessions to count yet. A session counts once it has ended and it isn't the student's first.
         ${n(s.first_sessions)} first session(s) and ${n(s.open_sessions)} open session(s) so far.</p>`;
     }
     const pct = Number(s.percent_under_10);
@@ -73,7 +73,7 @@ const OKRStatsPanel = (() => {
       <dl class="okr1-facts">
         <div><dt>Sessions under 10 min</dt><dd>${n(s.sessions_under_10)} of ${n(s.sessions_counted)}</dd></div>
         <div><dt>Median session</dt><dd>${s.median_minutes === null ? '—' : esc(s.median_minutes) + ' min'}</dd></div>
-        <div><dt>Users counted</dt><dd>${n(s.users_counted)}</dd></div>
+        <div><dt>Students counted</dt><dd>${n(s.users_counted)}</dd></div>
         <div><dt>Left out: first / still open</dt><dd>${n(s.first_sessions)} / ${n(s.open_sessions)}</dd></div>
       </dl>`;
   }
@@ -84,7 +84,7 @@ const OKRStatsPanel = (() => {
     container.classList.add('okr1-panel');
     container.innerHTML = `
       <h2>OKR 1: Short sessions</h2>
-      <p class="okr1-goal">Goal: 80% of sessions under 10 minutes, not counting each user's first session.</p>
+      <p class="okr1-goal">Goal: 80% of sessions under 10 minutes, not counting each student's first session.</p>
       <div class="okr1-body" aria-live="polite">Loading…</div>
       <div class="okr1-foot"><span class="okr1-updated"></span><button type="button">Refresh</button></div>`;
     const bodyEl = container.querySelector('.okr1-body');

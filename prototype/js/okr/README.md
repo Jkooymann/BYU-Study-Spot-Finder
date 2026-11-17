@@ -1,24 +1,25 @@
-# OKR 1 session tracking (PROTOTYPE)
+# OKR 1 session tracking
 
 OKR 1: **80% of users spend less than 10 minutes in a single session, not counting their first session.**
 
 | File | What it does |
 |---|---|
-| `okr-api.js` | Calls the three database functions. Plain `fetch`, no Supabase client. |
-| `session-tracker.js` | Starts a session when a tab opens the site, heartbeats every 30 s while the tab is visible. Holds `getTrackingUserId()`, the one place that decides who the user is. |
+| `okr-api.js` | Calls the three database functions with plain `fetch`, sending the logged-in person's access token (`DB.accessToken()` in `js/db.js`). |
+| `session-tracker.js` | Starts a session for the logged-in student, heartbeats every 30 s while the tab is visible, ends it on logout. `getTrackingUserId()` says who is logged in. |
 | `okr-stats-panel.js` | `OKRStatsPanel.mount(element)`: the stats card. Brings its own styles. |
 | `../../okr-stats.html` | Stand-in for the admin page; shows the panel. |
-| `supabase/migrations/20261116220000_okr1_session_tracking.sql` | `user_session` table, `okr_start_session`, `okr_heartbeat`, `okr1_stats()`, view `okr1_session_lengths`. |
+| `supabase/migrations/20261116220000_okr1_session_tracking.sql` | `user_session` table (`user_id` → `student_user`), `okr_start_session()`, `okr_heartbeat()`, `okr1_stats()`, view `okr1_session_lengths`. |
 
-**Rules.** One session = one browser tab, open to close (reloads keep the session).
-Length = last heartbeat − start, both stamped by the database clock. Each user's first
-session is left out, and so are sessions heard from in the last 2 minutes (still open).
+**Rules.** One session = one browser tab for one logged-in student, from opening the
+site (or logging in) until the tab closes (or they log out). Reloads keep the session.
+Logged-out visitors aren't tracked. Length = last heartbeat − start, both stamped by
+the database clock. The database finds the student from the login (`auth.uid()`), so
+nobody can record sessions for someone else. Each student's first session is left out,
+and so are sessions heard from in the last 2 minutes (still open).
 
-## Swap the anonymous id for the logged-in user
-
-Edit only `getTrackingUserId()` in `session-tracker.js` (the comment above it has the
-code), then delete `getAnonymousId()`. Optionally clear old rows in the SQL Editor:
-`delete from user_session where tracking_user_id like 'anon:%';`
+**Hooks into the rest of the site:** two `<script>` lines at the end of
+`prototype/index.html`, one line in `App.loadShared()` (`js/app.js`) that calls
+`SessionTracker.sync()` after each login check, and `DB.accessToken()` in `js/db.js`.
 
 ## Move the panel to the admin page
 
@@ -29,6 +30,6 @@ Don't load `session-tracker.js` on the admin page, so admins viewing stats aren'
 
 ## Remove it completely
 
-Delete `prototype/js/okr/`, `prototype/okr-stats.html`, and the two `js/okr/` script
-lines at the bottom of `prototype/index.html`. In Supabase, run the "Undo" lines at the
-end of the migration file.
+Delete `prototype/js/okr/`, `prototype/okr-stats.html`, the two `js/okr/` script lines
+in `prototype/index.html`, and the `SessionTracker.sync()` line in `js/app.js`. In
+Supabase, run the "Undo" lines at the end of the migration file.

@@ -47,7 +47,7 @@ with sync_playwright() as p:
     page = b.new_page(); errors = []
     use_sample_spots(page)
     page.on('pageerror', lambda e: errors.append(str(e)))
-    page.route('**/js/db.js', lambda r: r.fulfill(content_type='application/javascript', body=FAKE_DB))
+    page.route('**/js/db.js*', lambda r: r.fulfill(content_type='application/javascript', body=FAKE_DB))
     page.route('https://**/*', lambda r: r.abort())
     page.goto(BASE_URL + '/#start')
     page.evaluate("localStorage.clear()")
@@ -76,6 +76,8 @@ with sync_playwright() as p:
     page.click('.spot-card[data-open-spot="s3"] [data-fav]'); page.wait_for_timeout(100)
     page.click('#ai-fab')
     page.wait_for_selector('#ai-panel .ai-loading')
+    assert 'up to 30 seconds' in page.locator('#ai-panel').inner_text()
+    assert page.locator('#ai-panel .ai-progress').count() == 1
     page.wait_for_selector('#ai-panel .ai-item')
     items = page.locator('#ai-panel .ai-item')
     assert items.count() == 2, items.count()

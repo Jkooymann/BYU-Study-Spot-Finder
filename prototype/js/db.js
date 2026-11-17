@@ -13,6 +13,15 @@ const DB = (() => {
     && typeof SUPABASE_ANON_KEY === 'string' && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.startsWith('PASTE_');
   const client = configured ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+  // A Supabase email link brings people back with #access_token=…&type=recovery
+  // (or #error=…&error_code=otp_expired). Note what kind of link it was now,
+  // before the router changes the address. null when the page wasn't opened from a link.
+  const authLink = (() => {
+    const p = new URLSearchParams(location.hash.slice(1));
+    if (!p.has('access_token') && !p.has('error') && !p.has('error_code')) return null;
+    return { type: p.get('type') || '', error: p.get('error_code') || p.get('error') || '' };
+  })();
+
   async function students() {
     const { data, error } = await client.from('student_user')
       .select('user_id, display_name, byu_net_id').order('user_id');
@@ -46,9 +55,9 @@ const DB = (() => {
   // student_user!submitted_by_user_id names which link to follow: study_spot and
   // student_user are also linked through favorite_spot and spot_rating, and a
   // plain student_user(...) makes Supabase refuse with "more than one relationship".
-  const SPOT_COLUMNS = 'study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number, description, '
-    + 'is_indoors, max_group_size, typical_busyness_level, floor_plan_x_percent, floor_plan_y_percent, '
-    + 'study_spot_amenity(amenity_id), submitter:student_user!submitted_by_user_id(display_name)';
+  // Selecting table columns via * keeps indoor reads working before the outdoor
+  // migration is deployed; the new coordinates are optional on older rows.
+  const SPOT_COLUMNS = '*, study_spot_amenity(amenity_id), submitter:student_user!submitted_by_user_id(display_name)';
 
   /** Turn a study_spot row into the spot shape the site uses (see data.js). */
   function toSpot(row) {
@@ -64,8 +73,9 @@ const DB = (() => {
       name: row.spot_name,
       building: b ? b.id : '',
       floor: floorFromDatabase(row.floor_number),
+      campusPosition: row.campus_map_x_percent != null && row.campus_map_y_percent != null ? { x: Number(row.campus_map_x_percent), y: Number(row.campus_map_y_percent) } : null,
       room: '',
-      position: { x: Number(row.floor_plan_x_percent), y: Number(row.floor_plan_y_percent) },
+      position: row.campus_map_x_percent != null ? null : { x: Number(row.floor_plan_x_percent), y: Number(row.floor_plan_y_percent) },
       features,
       groupSize: max <= 1 ? 'solo' : max <= 4 ? 'small group' : 'big group',
       busyness: BUSY_FROM_DB[row.typical_busyness_level] || 'Moderate',
@@ -93,23 +103,30 @@ const DB = (() => {
   /** Save a new spot for this student. Returns the saved spot. */
   async function addSpot(userId, spot) {
     const f = spot.features;
+    if (f.outdoors && (!spot.campusPosition || ![spot.campusPosition.x, spot.campusPosition.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100))) {
+      throw new Error('Place an outdoor pin on the campus map before saving.');
+    }
     const building = buildingById(spot.building);
-    if (!building || building.dbId == null) {
+    if ((!f.outdoors || spot.building) && (!building || building.dbId == null)) {
       throw new Error(`${building ? building.short : 'This building'} isn't in the database yet. Ask the project owner to apply the latest building migrations in Supabase, then reload.`);
     }
     const noise = f.quietZone && !f.talkingAllowed ? 'Quiet' : f.talkingAllowed && !f.quietZone ? 'Moderate' : null;
     const { data, error } = await client.from('study_spot').insert({
-      building_id: building.dbId,
+      building_id: building ? building.dbId : null,
       submitted_by_user_id: userId,
       spot_name: spot.name,
-      floor_number: floorToDatabase(spot.floor),
+      floor_number: f.outdoors ? null : floorToDatabase(spot.floor),
       description: spot.description || null,
       is_indoors: !f.outdoors,
       max_group_size: GROUP_TO_MAX[spot.groupSize] || 1,
       noise_level: noise,
       typical_busyness_level: BUSY_TO_DB[spot.busyness] || 'Moderate',
-      floor_plan_x_percent: Math.round(spot.position.x * 100) / 100,
-      floor_plan_y_percent: Math.round(spot.position.y * 100) / 100,
+      floor_plan_x_percent: f.outdoors ? null : Math.round(spot.position.x * 100) / 100,
+      floor_plan_y_percent: f.outdoors ? null : Math.round(spot.position.y * 100) / 100,
+      ...(f.outdoors ? {
+        campus_map_x_percent: Math.round(spot.campusPosition.x * 100) / 100,
+        campus_map_y_percent: Math.round(spot.campusPosition.y * 100) / 100,
+      } : {}),
       is_sample_spot: false,
     }).select('study_spot_id').single();
     if (error) throw error;
@@ -176,14 +193,19 @@ const DB = (() => {
     if (error) throw error;
   }
 
-  /** The signed-in student's student_user row ({ user_id, display_name, byu_net_id }), or null. */
+  /**
+   * The signed-in student's student_user row ({ user_id, display_name, byu_net_id })
+   * plus `email`, the address they log in with, or null.
+   * Use `email` for display: byu_net_id can have a suffix added when that Net ID
+   * was already taken (see the sign-up trigger), so it isn't always their address.
+   */
   async function currentStudent() {
     const { data: { user } } = await client.auth.getUser();
     if (!user) return null;
     const { data, error } = await client.from('student_user')
       .select('user_id, display_name, byu_net_id').eq('auth_user_id', user.id).maybeSingle();
     if (error) throw error;
-    return data;
+    return data ? { ...data, email: user.email } : null;
   }
 
   /* ---------------------------------------------------------------------
@@ -205,9 +227,53 @@ const DB = (() => {
     throw error;
   }
 
+  /* ---------------------------------------------------------------------
+     Password reset. Supabase emails a one-time link (valid for an hour by
+     default) that brings the person back here already logged in, so they
+     can choose a new password with updatePassword().
+     --------------------------------------------------------------------- */
+
+  /**
+   * Ask Supabase to email a reset link. Supabase answers the same way whether
+   * or not the address has an account, so this doesn't reveal who has one.
+   * The link returns to this page; its address must be listed under
+   * Authentication → URL Configuration → Redirect URLs in Supabase.
+   */
+  async function requestPasswordReset(email) {
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: location.origin + location.pathname,
+    });
+    if (error) throw error;
+  }
+
+  /** Set a new password for whoever is logged in (after opening a reset link). */
+  async function updatePassword(password) {
+    const { error } = await client.auth.updateUser({ password });
+    if (error) throw error;
+  }
+
+  /**
+   * Wait until Supabase has read the email link in the address (it does this
+   * on its own when the page loads). Returns true if someone is now logged in.
+   */
+  async function finishAuthLink() {
+    if (!client) return false;
+    const { data } = await client.auth.getSession();
+    return !!(data && data.session);
+  }
+
+  /** The logged-in person's access token, or null. Used by js/okr/okr-api.js. */
+  async function accessToken() {
+    if (!client) return null;
+    const { data } = await client.auth.getSession();
+    return (data && data.session && data.session.access_token) || null;
+  }
+
   return {
+    accessToken,
     ready: !!client, students, favoriteSpotIds, addFavorite, removeFavorite,
     buildings, studentSpots, addSpot, deleteSpot,
     signUp, signIn, signOut, currentStudent, recommendSpots,
+    authLink, finishAuthLink, requestPasswordReset, updatePassword,
   };
 })();

@@ -55,7 +55,7 @@ with sync_playwright() as p:
     page = b.new_page(); errors = []
     use_sample_spots(page)
     page.on('pageerror', lambda e: errors.append(str(e)))
-    page.route('**/js/db.js', lambda r: r.fulfill(content_type='application/javascript', body=FAKE_DB))
+    page.route('**/js/db.js*', lambda r: r.fulfill(content_type='application/javascript', body=FAKE_DB))
     page.route('https://**/*', lambda r: r.abort())
     page.goto(BASE_URL + '/#start')
     page.evaluate("localStorage.clear(); localStorage.setItem('fake.users', JSON.stringify([{ email: 'jane@byu.edu', password: 'password1', displayName: 'Jane Smith', netId: 'jane', user_id: 10 }])); localStorage.setItem('fake.spots', JSON.stringify([]))")
@@ -127,7 +127,7 @@ with sync_playwright() as p:
     page.goto(BASE_URL + '/#add-wsc'); page.wait_for_selector('#add-form')
     assert page.locator('#add-building').input_value() == 'wsc'
     page.fill('#add-name', 'Test Nook'); page.click('#add-plan .fp-outline')
-    page.click('[data-add-setting="outdoors"]'); page.click('[data-add-tag="wifi"]')
+    page.click('[data-add-setting="outdoors"]'); page.locator('#add-campus-plan').press('ArrowRight'); page.click('[data-add-tag="wifi"]')
     page.click('#add-form [type="submit"]'); page.wait_for_url('**/#list'); page.wait_for_selector('.spot-card.is-flash')
     spot_id = page.locator('.spot-card.is-flash').get_attribute('data-open-spot')
     page.goto(BASE_URL + '/#spot-' + spot_id); page.wait_for_selector('[data-sd-delete]')
