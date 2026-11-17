@@ -109,6 +109,15 @@ Visitors land on `#start` and can use the whole site without logging in. The
   `DB.signUp({ email, password, displayName, netId })`. Net ID `jsmith` becomes
   `jsmith@byu.edu`. Supabase Auth stores the login, and the trigger in
   `*_save_new_users.sql` adds the person to `student_user`.
+- The Net ID box also takes a full `@byu.edu` email. `parseByuEmail()` accepts any
+  character that is valid before the `@` in an email (letters, numbers, and
+  ``. _ - + ' ! # $ % & * / = ? ^ ` { | } ~``), lowercases it, and rejects other
+  domains, spaces, more than 64 characters, and a period that is first, last or
+  doubled. `accountErrorMessage()` turns Supabase errors (address not accepted,
+  confirmation email not sent, database step failed, no connection) into plain
+  messages that say what to do next; the raw error only goes to the browser console.
+- The account menu shows the login email from Supabase Auth, not `byu_net_id`,
+  because the trigger adds a suffix to `byu_net_id` when that Net ID is already taken.
 - After sign-up the user is sent to **Log in** with their Net ID filled in. If
   Supabase's "Confirm email" setting is on, the page tells them to click the link in
   their BYU email first. The link returns to this site (see `emailRedirectTo` in

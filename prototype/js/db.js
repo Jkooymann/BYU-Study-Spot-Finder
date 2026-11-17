@@ -176,14 +176,19 @@ const DB = (() => {
     if (error) throw error;
   }
 
-  /** The signed-in student's student_user row ({ user_id, display_name, byu_net_id }), or null. */
+  /**
+   * The signed-in student's student_user row ({ user_id, display_name, byu_net_id })
+   * plus `email`, the address they log in with, or null.
+   * Use `email` for display: byu_net_id can have a suffix added when that Net ID
+   * was already taken (see the sign-up trigger), so it isn't always their address.
+   */
   async function currentStudent() {
     const { data: { user } } = await client.auth.getUser();
     if (!user) return null;
     const { data, error } = await client.from('student_user')
       .select('user_id, display_name, byu_net_id').eq('auth_user_id', user.id).maybeSingle();
     if (error) throw error;
-    return data;
+    return data ? { ...data, email: user.email } : null;
   }
 
   /* ---------------------------------------------------------------------

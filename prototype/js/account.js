@@ -43,16 +43,62 @@ const AccountAPI = {
   },
 };
 
-/** Turn a Supabase error into a short message that is safe to show. */
-function accountErrorMessage(err, signup) {
+/* Characters allowed before the @ in an email address (RFC 5322 "dot-atom",
+   the same set Supabase Auth accepts). Periods are checked separately. */
+const EMAIL_LOCAL_CHARS = /^[a-z0-9!#$%&'*+/=?^_`{|}~.-]+$/;
+
+/**
+ * Turn what someone typed in the Net ID box into their BYU email.
+ * Accepts a Net ID ("jane.doe") or a full BYU email ("Jane.Doe@byu.edu").
+ * Returns { netId, email } or { error } with a message to show under the box.
+ */
+function parseByuEmail(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  if (!value) return { error: 'Enter your BYU Net ID.' };
+  if (/\s/.test(value)) return { error: 'Remove the spaces from your Net ID.' };
+  const at = value.lastIndexOf('@');
+  const local = at === -1 ? value : value.slice(0, at);
+  if (at !== -1 && value.slice(at + 1) !== 'byu.edu') return { error: 'Use your BYU Net ID or @byu.edu email. Other email addresses can’t be used.' };
+  if (!local) return { error: 'Enter the part of your email that comes before @byu.edu.' };
+  if (local.includes('@')) return { error: 'Your Net ID can only have one @. Check for typos.' };
+  if (local.length > 64) return { error: 'That’s too long for an email address (64 characters before @byu.edu at most). Check for typos.' };
+  if (!EMAIL_LOCAL_CHARS.test(local)) return { error: 'That has a character email addresses can’t use. Use letters, numbers, and symbols like . _ - + only.' };
+  if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) return { error: 'A period can’t be first, last, or right next to another period. Check for typos.' };
+  return { netId: local, email: `${local}@byu.edu` };
+}
+
+/**
+ * Turn a Supabase error into a short message that is safe to show: it says what
+ * went wrong and what to do next, never the raw error. `email` is the address
+ * the person typed (their own, so safe to repeat back).
+ */
+function accountErrorMessage(err, signup, email) {
   const code = String((err && err.code) || '');
   const msg = String((err && err.message) || '').toLowerCase();
+  const name = String((err && err.name) || '');
+  const addr = email || 'that address';
   if (err && err.friendly) return err.message;
-  if (code === 'user_already_exists' || msg.includes('already registered')) return 'An account with that Net ID already exists. Try logging in instead.';
+  // No answer from Supabase at all (offline, blocked, timed out).
+  if (name === 'AuthRetryableFetchError' || msg.includes('failed to fetch') || msg.includes('network') || msg.includes('load failed')) {
+    return 'We couldn’t reach the server. Check your internet connection and try again.';
+  }
+  if (code === 'user_already_exists' || code === 'email_exists' || msg.includes('already registered')) return 'An account with that Net ID already exists. Try logging in instead.';
   if (code === 'weak_password' || msg.includes('password should')) return 'That password is too easy to guess. Try a longer one.';
   if (code === 'invalid_credentials' || msg.includes('invalid login')) return 'That Net ID and password don’t match. Please try again.';
   if (code === 'email_not_confirmed' || msg.includes('not confirmed')) return 'Please confirm your account first. Open the email we sent to your BYU address and click the link.';
+  if (code === 'over_email_send_rate_limit') return 'We’ve sent too many emails in a short time. Please wait a few minutes, then try again.';
   if (code.includes('rate_limit') || msg.includes('rate limit')) return 'Too many tries in a short time. Please wait a few minutes and try again.';
+  // Supabase didn't accept the address (format, or a domain it won't send to).
+  if (code === 'email_address_invalid' || (code === 'validation_failed' && msg.includes('email')) || msg.includes('unable to validate email') || (msg.includes('email address') && msg.includes('invalid'))) {
+    return `${addr} wasn’t accepted as an email address. Check your Net ID for typos and try again.`;
+  }
+  // The confirmation email couldn't be sent.
+  if (code === 'email_address_not_authorized' || msg.includes('sending confirmation') || msg.includes('error sending')) {
+    return `We couldn’t send a confirmation email to ${addr}. Check that your Net ID is spelled correctly. If it is, please try again later.`;
+  }
+  if (code === 'signup_disabled' || msg.includes('signups not allowed')) return 'New accounts can’t be created right now. Please try again later.';
+  // The database step after sign-up failed (the student_user trigger).
+  if (msg.includes('database error')) return 'Something went wrong on our end while setting up your account. Please try again in a few minutes.';
   return signup ? 'We couldn’t create your account. Please try again later.' : 'We couldn’t log you in. Please try again later.';
 }
 
@@ -72,7 +118,7 @@ const AccountPages = {
         ${created}
         <form id="${signup ? 'signup' : 'login'}-form" novalidate>
           ${signup ? `<div class="field"><label class="label" for="account-name">Your name</label><input class="input" id="account-name" name="displayName" autocomplete="name" required maxlength="60" aria-describedby="name-help name-error"><p class="account-note" id="name-help">This is what we’ll show in the top corner.</p><p class="field-error" id="name-error" hidden></p></div>` : ''}
-          <div class="field"><label class="label" for="account-netid">BYU Net ID</label><div class="account-email"><input class="input" id="account-netid" name="netId" value="${netIdValue}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="64" aria-describedby="netid-help netid-error"><span>@byu.edu</span></div><p class="account-note" id="netid-help">Enter just your Net ID. We’ll add @byu.edu for you.</p><p class="field-error" id="netid-error" hidden></p></div>
+          <div class="field"><label class="label" for="account-netid">BYU Net ID</label><div class="account-email"><input class="input" id="account-netid" name="netId" value="${netIdValue}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="80" aria-describedby="netid-help netid-error"><span>@byu.edu</span></div><p class="account-note" id="netid-help">Enter your Net ID (or your full @byu.edu email). We’ll add @byu.edu for you.</p><p class="field-error" id="netid-error" hidden></p></div>
           <div class="field"><label class="label" for="account-password">Password</label><div class="account-password"><input class="input" id="account-password" name="password" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" required ${signup ? 'minlength="8"' : ''} aria-describedby="password-help password-error"><button type="button" class="account-show" data-show-password="account-password" aria-controls="account-password" aria-pressed="false">Show</button></div><p class="account-note" id="password-help">${signup ? 'Use at least 8 characters.' : 'Enter your account password.'}</p><p class="field-error" id="password-error" hidden></p></div>
           ${signup ? `<div class="field"><label class="label" for="account-confirm">Confirm password</label><input class="input" id="account-confirm" name="confirmPassword" type="password" autocomplete="new-password" required aria-describedby="confirm-error"><p class="field-error" id="confirm-error" hidden></p></div>` : ''}
           <p id="account-message" class="account-message" role="alert" tabindex="-1" hidden></p>
@@ -110,8 +156,9 @@ document.addEventListener('submit', async (event) => {
   if (form.dataset.pending) return;
   const signup = form.id === 'signup-form';
   const netInput = form.elements.netId;
-  // Accept a pasted BYU email too, but never append a second domain.
-  const netId = netInput.value.trim().toLowerCase().replace(/@byu\.edu$/i, '');
+  // Accept a Net ID or a pasted BYU email, including valid punctuation (. _ - + ' and so on).
+  const parsed = parseByuEmail(netInput.value);
+  const netId = parsed.netId || '';
   const password = form.elements.password.value;
   const displayName = signup ? form.elements.displayName.value.trim().replace(/\s+/g, ' ') : '';
   const errors = [];
@@ -123,7 +170,7 @@ document.addEventListener('submit', async (event) => {
     if (message) errors.push(input);
   }
   if (signup) validate(form.elements.displayName, 'name-error', displayName ? '' : 'Enter your name.');
-  validate(netInput, 'netid-error', /^[a-z0-9][a-z0-9._-]*$/.test(netId) ? '' : 'Enter your BYU Net ID, without spaces or another email domain.');
+  validate(netInput, 'netid-error', parsed.error || '');
   validate(form.elements.password, 'password-error', password.length >= (signup ? 8 : 1) ? '' : signup ? 'Use a password with at least 8 characters.' : 'Enter your password.');
   if (signup) validate(form.elements.confirmPassword, 'confirm-error', form.elements.confirmPassword.value && form.elements.confirmPassword.value === password ? '' : 'Enter the same password again to confirm it.');
   const message = form.querySelector('#account-message');
@@ -136,7 +183,7 @@ document.addEventListener('submit', async (event) => {
   const label = submit.textContent;
   submit.disabled = true;
   submit.textContent = signup ? 'Creating account…' : 'Logging in…';
-  const email = `${netId}@byu.edu`;
+  const email = parsed.email;
   try {
     if (signup) {
       const { needsEmailConfirm } = await AccountAPI.createAccount({ email, netId, password, displayName });
@@ -151,7 +198,7 @@ document.addEventListener('submit', async (event) => {
   } catch (err) {
     console.error(signup ? 'Sign up failed' : 'Log in failed', err && (err.code || err.message));
     if (form.isConnected) {
-      message.textContent = accountErrorMessage(err, signup);
+      message.textContent = accountErrorMessage(err, signup, email);
       message.hidden = false;
       message.focus();
     }
