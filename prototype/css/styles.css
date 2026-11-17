@@ -358,6 +358,10 @@ button { cursor: pointer; }
 .feature-icons .ic { width: 17px; height: 17px; }
 .group-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-ink); font-size: .82rem; font-weight: 700; }
 .group-badge .ic { width: 16px; height: 16px; }
+.private-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px 3px 7px; border-radius: 99px; background: var(--surface-2); color: var(--muted); font-size: .8rem; font-weight: 700; }
+.private-badge .ic { width: 13px; height: 13px; }
+.sd-private { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: .88rem; font-weight: 600; color: var(--muted); }
+.sd-private .ic { width: 15px; height: 15px; }
 .busy { display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; font-weight: 600; color: var(--text); }
 .busy .est { font-size: .72rem; font-weight: 600; color: var(--muted); }
 .busy-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }

@@ -10,7 +10,7 @@ Features:
 - Study Spot List: every spot, with filters for group size, features, building, and indoors or outdoors, sorted by building or by least busy.
 - Accounts: students create an account with their BYU Net ID and log in. Their name shows in the top corner, with a menu to log out.
 - Favorites: logged-in students tap the ★ on any spot to save it to their account.
-- Add a Spot: logged-in students can add a spot they know about (building, floor, location on the floor plan, group size, how busy it usually is, and features). Everyone sees spots added by other students, and only the person who added a spot can delete it.
+- Add a Spot: logged-in students can add a spot they know about (building, floor, location on the floor plan, group size, how busy it usually is, and features). Spots a student adds are private: only they see them. Spots added by the team's admin account are shared with everyone. Students can delete only their own spots.
 - ✨ Suggest spots: a button in the bottom-right corner uses AI (Google Gemini) to suggest 3–5 spots based on a student's favorites, each with a short reason.
 
 ERD:

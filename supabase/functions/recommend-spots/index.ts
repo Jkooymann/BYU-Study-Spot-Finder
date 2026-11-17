@@ -90,12 +90,19 @@ function toSpot(r: any): Spot {
   };
 }
 
-/** Every spot in the database, read in pages so thousands of spots still work. */
-async function allSpots(db: SupabaseClient): Promise<Spot[]> {
+/**
+ * Every spot this student may see: all shared spots plus their own private spots.
+ * This function uses the service role, which skips Row Level Security, so the same
+ * rule as the "Read shared spots and your own" policy is applied here by hand.
+ * Read in pages so thousands of spots still work.
+ */
+async function visibleSpots(db: SupabaseClient, studentId: number): Promise<Spot[]> {
+  if (!Number.isSafeInteger(studentId)) throw new Error('Bad student id');
   const out: Spot[] = [];
   const page = 1000;
   for (let from = 0; from < 20_000; from += page) {
     const { data, error } = await db.from('study_spot').select(SPOT_SELECT)
+      .or(`is_shared.eq.true,submitted_by_user_id.eq.${studentId}`)
       .order('study_spot_id').range(from, from + page - 1);
     if (error) throw error;
     out.push(...(data ?? []).map(toSpot));
@@ -268,10 +275,11 @@ Deno.serve(async (req) => {
       }
     } catch { /* no body: consider every spot */ }
 
-    // 2. Live data: favorites and every spot.
+    // 2. Live data: favorites and every spot this student may see (shared + their own).
+    //    Favorites of spots they can't see are ignored, because favs is taken from these spots.
     const [favRes, spots] = await Promise.all([
       db.from('favorite_spot').select('study_spot_id').eq('user_id', me.user_id),
-      allSpots(db),
+      visibleSpots(db, Number(me.user_id)),
     ]);
     if (favRes.error) throw favRes.error;
     const favIds = new Set((favRes.data ?? []).map((r) => Number(r.study_spot_id)));

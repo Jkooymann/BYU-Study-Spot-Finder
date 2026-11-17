@@ -2,7 +2,7 @@
 
 Serve this folder with a local web server (VS Code's Live Server "Go Live", or `python3 -m http.server 8000` from this folder) and open it in a browser. No build step or install needed.
 
-Favorite spots and spots you add on the Add a Spot page are saved in the team's Supabase database for the logged-in student, so everyone sees the added spots. Everything else is still saved only in your own browser.
+Favorite spots and spots you add on the Add a Spot page are saved in the team's Supabase database for the logged-in student. A student's added spots are private to them; spots the team's admin account adds are shared with everyone. Everything else is still saved only in your own browser.
 
 ## Files
 
@@ -38,7 +38,7 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 - Busyness is a typical level, not live data. It is labeled "est." everywhere and explained on Spot Details.
 - Filters are the same everywhere: group size, Indoors / Outdoors (one choice: Anywhere, Indoors or Outdoors), seven features including WiFi, and building. Get Started shows the same features plus Indoors and Outdoors.
 - When nothing matches, every page shows the same message with Change filters, Pick a random spot, and Clear all filters.
-- Only the person who added a spot can delete it. Sample spots and other students' spots have no delete button.
+- Students can delete only their own private spots; only the admin account can delete shared spots. Other spots have no delete button.
 - The Campus Map places each building from its latitude/longitude in `data.js`; shapes are simplified. Buildings without spots are drawn dashed and invite people to add one.
 - The List sorts by Building or Least busy first (A–Z was removed).
 - Add a Spot asks how busy the spot usually is and saves it to `study_spot.typical_busyness_level`.
@@ -50,11 +50,61 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 - Needs the migrations in `supabase/migrations/` applied to the database, and the publishable key in `js/supabase-config.js` (already filled in).
 - If Add a Spot shows "Could not save your spot", paste `supabase/migrations/20261106060000_fix_add_spot.sql` into the Supabase SQL Editor and run it. It puts every piece saving needs in place (safe to run more than once) and ends with a checklist that should say "ok" on every row. The error message now says what went wrong; the full error is in the browser console (F12).
 - Favorites are saved in `favorite_spot` for the logged-in student. Logged-out visitors who tap a star are asked to log in, and the Favorites page links to Log in.
-- Spots added on the Add a Spot page are saved in `study_spot` (with `submitted_by_user_id` set to the logged-in student) and their tags in `study_spot_amenity`. Quiet zone and Talking allowed are amenities 8 and 9; Outdoors is `is_indoors`. Everyone sees every added spot; teammates' spots show an "Added by …" badge.
-- Logged-out visitors are asked to log in before adding a spot. Students can delete only their own spots (`*_own_spots_only.sql`).
+- Spots added on the Add a Spot page are saved in `study_spot` (with `submitted_by_user_id` set to the logged-in student) and their tags in `study_spot_amenity`. Quiet zone and Talking allowed are amenities 8 and 9; Outdoors is `is_indoors`.
+- Logged-out visitors are asked to log in before adding a spot.
 - The 11 buildings added to the map need `*_add_more_buildings.sql` (or `*_fix_add_spot.sql`) applied before students can add spots in them. The site looks up their ids by building code, so until then adding a spot there shows an error and nothing else breaks.
 - If the key is missing or the database can't be reached, the site falls back to saving favorites and new spots on your device and says so on the Favorites and Add a Spot pages.
-- Still demo-level security: the favorites policies in `*_allow_demo_favorites.sql` let anyone change any row. They should be tightened to `auth.uid()` so students can only change their own favorites.
+- Favorites: each student can read, add and remove only their own, and only on spots they can see (`*_private_and_shared_spots.sql`).
+
+## Private and shared spots
+
+Set up by `supabase/migrations/20261118010000_private_and_shared_spots.sql`.
+
+- **Students' spots are private.** A spot a regular student adds is seen only by that
+  student, while logged in. It shows an "Only you" label.
+- **The admin's spots are shared.** One designated account (the team chose Jason's) adds
+  spots that everyone sees, logged in or not. Every spot that account adds is shared.
+- Everyone sees all shared spots plus their own private spots. The admin does **not** see
+  other students' private spots.
+- **Enforced by the database (Row Level Security), not the page.** `study_spot.is_shared` is
+  set by a database trigger when a spot is added (shared only if the admin added it), and
+  the insert policy re-checks it, so editing a request or the site's code can't create a
+  shared spot. Nobody can update spots. Students can delete only their own private spots;
+  only the admin can delete shared spots. Spot tags and favorites follow the same visibility.
+- **Who the admin is** is stored in `public.app_admin`, which the website's keys can't read or
+  change (RLS on, no policies, no grants). Only the SQL Editor can. It holds at most one
+  account. User metadata is not used. The page asks `is_spot_admin()` only to show the right
+  labels.
+- **Existing spots:** every spot that existed when the migration first ran (all 36, added by
+  Jason) was marked shared, so nothing disappeared and nothing private was exposed. Running
+  the migration again does not share private spots.
+- The ✨ Suggest spots function uses the service role (which skips RLS), so it applies the
+  same rule itself: only shared spots plus the asking student's own.
+
+### Set it up (once)
+
+1. Supabase → SQL Editor → New query: paste and run the migration. Its checklist should say
+   "ok" on every row except "admin account chosen (step 2)".
+2. Choose the admin account. In a new query, run this with that account's login email:
+   ```sql
+   insert into public.app_admin (auth_user_id, note)
+   select id, 'Shared spots admin' from auth.users where email = 'ADMIN-EMAIL@byu.edu';
+   ```
+   Check it: `select u.email from public.app_admin a join auth.users u on u.id = a.auth_user_id;`
+   To switch accounts later: `delete from public.app_admin;` then run the insert again.
+3. Redeploy the `recommend-spots` Edge Function (Dashboard → Edge Functions → recommend-spots →
+   paste the new `supabase/functions/recommend-spots/index.ts`, or
+   `npx supabase functions deploy recommend-spots --no-verify-jwt`). Until it's redeployed, AI
+   suggestions could include other students' private spots.
+4. The admin logs out and back in on the site. Add a Spot should say "(team admin) … shared with
+   everyone".
+
+### Checking the rules
+
+`python3 supabase/tests/private_shared_spots_rls.py` runs every migration in a throwaway local
+Postgres set up like Supabase and tries 46 ways to break the rules (needs Postgres installed
+locally; `PGPORT` etc. pick the server; it never touches the real project).
+`python3 prototype/tests/spot_visibility_flow.py` checks what the pages show for each kind of user.
 
 ## AI recommendations (✨ Suggest spots)
 

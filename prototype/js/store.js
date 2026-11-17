@@ -55,21 +55,28 @@ const Store = (() => {
     return { ...saved, isUserSpot: true };
   }
 
+  /** A database spot only its owner can see (a regular student's spot). */
+  function isPrivateSpot(spot) { return !!(spot && spot.dbId != null && spot.shared === false); }
+
   /**
-   * True when the person looking can delete this spot: a database spot the
-   * logged-in student added, or a spot saved only on this device. Sample spots
-   * and other students' spots can't be deleted.
+   * True when the person looking can delete this spot: their own private spot,
+   * a shared spot when they're the team admin, or a spot saved only on this
+   * device. This only decides whether to show the button; the database's
+   * Row Level Security makes the real decision.
    */
-  function isOwnSpot(spot) {
+  function canDeleteSpot(spot) {
     if (!spot) return false;
     if (spot.isLocalSpot) return true;
-    return !!(shared.me && spot.dbId != null && spot.submittedBy === shared.me.user_id);
+    if (!shared.me || spot.dbId == null) return false;
+    return spot.shared ? !!shared.me.isAdmin : spot.submittedBy === shared.me.user_id;
   }
+  /** True when the logged-in person is the team's shared-spots admin. */
+  function isAdmin() { return !!(shared.me && shared.me.isAdmin); }
 
   /** Delete one of your own spots. Returns a promise that rejects (and undoes) if Supabase refused. */
   function deleteSpot(id) {
     const spot = getSpot(id);
-    if (!isOwnSpot(spot)) return Promise.reject(new Error('You can only delete spots you added.'));
+    if (!canDeleteSpot(spot)) return Promise.reject(new Error('You can’t delete this spot.'));
     const fromDb = shared.spots.find((s) => s.id === id);
     if (fromDb) {
       const before = shared.spots;
@@ -90,7 +97,7 @@ const Store = (() => {
   /* ---------------- Shared favorites (Supabase) ---------------- */
   // status: 'off' (no Supabase key), 'loading', 'ok', or 'error'
   // me: the logged-in student's student_user row, or null when logged out.
-  // spots: student-added spots from the database (not in data.js)
+  // spots: database spots this person may see (shared spots + their own private ones)
   const shared = { status: DB.ready ? 'loading' : 'off', me: null, favDbIds: [], spots: [] };
   const spotIdByDbId = (dbId) => {
     const s = SPOTS.find((x) => x.dbId === dbId) || shared.spots.find((x) => x.dbId === dbId);
@@ -231,7 +238,7 @@ const Store = (() => {
   function setPref(key, value) { write('pref.' + key, value); }
 
   return {
-    allSpots, getSpot, getSpotByDbId, addUserSpot, deleteSpot, isOwnSpot, randomSpot,
+    allSpots, getSpot, getSpotByDbId, addUserSpot, deleteSpot, canDeleteSpot, isPrivateSpot, isAdmin, randomSpot,
     sharedStatus, currentStudent, needsLogin, loadShared,
     favorites, isFav, toggleFav,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,

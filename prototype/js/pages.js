@@ -273,8 +273,9 @@ function favoritesNote() {
 /* ---------------- Page 10: Add a Spot ---------------- */
 function addSpotNote() {
   const me = Store.currentStudent();
-  if (Store.sharedStatus() === 'ok' && me) return `Adding as <strong>${esc(me.display_name)}</strong>. Your spot will be visible to everyone.`;
-  if (Store.needsLogin()) return '<a href="#login">Log in</a> to add a spot. It will be visible to everyone.';
+  if (Store.sharedStatus() === 'ok' && me && Store.isAdmin()) return `Adding as <strong>${esc(me.display_name)}</strong> (team admin). This spot will be <strong>shared with everyone</strong>.`;
+  if (Store.sharedStatus() === 'ok' && me) return `Adding as <strong>${esc(me.display_name)}</strong>. This spot will be <strong>private</strong>: only you will see it when you’re logged in.`;
+  if (Store.needsLogin()) return '<a href="#login">Log in</a> to add a spot. Spots you add are private to your account.';
   if (Store.sharedStatus() === 'loading') return 'Connecting to the database…';
   if (Store.sharedStatus() === 'error') return 'Could not reach the database, so your spot is saved only on this device.';
   return 'Your spot is saved only on this device.';

@@ -2,7 +2,9 @@
    DB — the only file that talks to Supabase.
    Favorites (favorite_spot) and spots added on the Add a Spot page
    (study_spot + study_spot_amenity) are saved for the logged-in student
-   (Supabase Auth; see the Accounts section below), so the whole team sees them.
+   (Supabase Auth; see the Accounts section below). A student's spots are private
+   to them; spots the team admin adds are shared with everyone. The database
+   enforces this (supabase/migrations/*_private_and_shared_spots.sql).
    If the Supabase script or key is missing, DB.ready is false and the site
    falls back to saving on this device only.
    ========================================================================= */
@@ -82,10 +84,17 @@ const DB = (() => {
       description: row.description || '',
       submittedBy: row.submitted_by_user_id,
       submittedByName: row.submitter ? row.submitter.display_name : '',
+      // true: added by the team admin, everyone sees it. false: private to the student who added it.
+      // (No is_shared column yet = the migration hasn't run, when every spot is still public.)
+      shared: row.is_shared !== false,
     };
   }
 
-  /** Spots students added (not the built-in sample spots), oldest first. */
+  /**
+   * Every spot this person may see, oldest first: all shared spots plus their own
+   * private spots (logged out: shared spots only). The database's Row Level Security
+   * decides this (*_private_and_shared_spots.sql), so nothing is filtered here.
+   */
   async function studentSpots() {
     const { data, error } = await client.from('study_spot')
       .select(SPOT_COLUMNS).eq('is_sample_spot', false).order('created_at');
@@ -205,7 +214,11 @@ const DB = (() => {
     const { data, error } = await client.from('student_user')
       .select('user_id, display_name, byu_net_id').eq('auth_user_id', user.id).maybeSingle();
     if (error) throw error;
-    return data ? { ...data, email: user.email } : null;
+    if (!data) return null;
+    // Is this the team's shared-spots admin? Only used to label the page; the database
+    // enforces who can add or delete shared spots. False if the check isn't set up yet.
+    const admin = await client.rpc('is_spot_admin');
+    return { ...data, email: user.email, isAdmin: !admin.error && admin.data === true };
   }
 
   /* ---------------------------------------------------------------------

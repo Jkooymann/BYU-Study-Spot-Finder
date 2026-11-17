@@ -232,7 +232,7 @@ document.addEventListener('click', (e) => {
     if (t.closest('[data-sd-delete-cancel]')) { SpotDialog.confirming = false; SpotDialog.render(); return; }
     if (t.closest('[data-sd-delete-confirm]')) {
       const s = Store.getSpot(SpotDialog.id);
-      if (!Store.isOwnSpot(s)) return;
+      if (!Store.canDeleteSpot(s)) return;
       Store.deleteSpot(SpotDialog.id).catch((err) => {
         console.error('Could not delete spot', err);
         App.refresh();
@@ -420,7 +420,7 @@ document.addEventListener('submit', async (e) => {
     (s.errors.name ? $('#add-name') : s.setting === 'outdoors' ? $('#add-campus-plan') : $('#add-building')).focus();
     return;
   }
-  if (Store.needsLogin()) { toast('Log in to add a spot for your team.', { href: '#login', label: 'Log in' }); return; }
+  if (Store.needsLogin()) { toast('Log in to add a spot.', { href: '#login', label: 'Log in' }); return; }
   const features = {};
   FILTER_FEATURES.forEach((f) => { features[f.key] = !!s.tags[f.key]; });
   features.outdoors = s.setting === 'outdoors';
@@ -445,7 +445,8 @@ document.addEventListener('submit', async (e) => {
   if (!Store.matches({ ...saved }, Store.getFilters())) Store.clearFilters();
   App.flashId = saved.id;
   AddState.reset();
-  toast(Store.sharedStatus() === 'ok' ? `Added “${saved.name}” to your list` : `Added “${saved.name}” on this device`);
+  toast(Store.sharedStatus() !== 'ok' ? `Added “${saved.name}” on this device`
+    : saved.shared ? `Added “${saved.name}” for everyone` : `Added “${saved.name}” to your private spots`);
   App.go('list');
 });
 

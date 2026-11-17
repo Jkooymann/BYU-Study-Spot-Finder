@@ -65,7 +65,7 @@ with sync_playwright() as p:
 
     # Log in page links to the reset request page
     fresh('#login')
-    page.get_by_role('link', name='Forgot password?').click(); page.wait_for_url('**/#forgot')
+    page.get_by_role('link', name='Forgot password?').click(); page.wait_for_url('**/#forgot'); page.wait_for_selector('#forgot-form')  # wait for the redraw, not just the URL
     assert 'Reset your password' in text('#account-title')
 
     # A bad Net ID is caught before anything is sent
@@ -100,7 +100,7 @@ with sync_playwright() as p:
 
     # An expired link explains itself and offers a new one
     fresh('#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired')
-    page.wait_for_url('**/#forgot')
+    page.wait_for_url('**/#forgot'); page.wait_for_selector('#forgot-form')
     assert 'expired or was already used' in text('.account-card')
 
     # #reset-password without a link

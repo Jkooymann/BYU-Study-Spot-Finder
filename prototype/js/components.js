@@ -40,6 +40,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /* ---------------- Icons (simple line icons, 24×24) ---------------- */
 const ICONS = {
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   quietZone: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
   talkingAllowed: '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.2A8 8 0 1 1 20 12z"/><path d="M9 11h.01M13 11h.01M17 11h.01"/>',
   foodAllowed: '<path d="M6 3v7a2 2 0 0 0 4 0V3M8 3v18"/><path d="M18 21V3c-2.5 1.2-3.5 4-3.5 7.5H18"/>',
@@ -199,6 +200,10 @@ function busyBadge(level) {
   return `<span class="busy busy-${cls}" title="Typical busyness (estimate, not live)">
       <span class="busy-bars" aria-hidden="true"><i></i><i></i><i></i></span>${esc(level)}<span class="est">est.</span></span>`;
 }
+/** "Only you" tag on a student's private spot (shared spots and sample spots get none). */
+function privateBadge(s) {
+  return Store.isPrivateSpot(s) ? `<span class="private-badge" title="Only you can see this spot">${icon('lock')}Only you</span>` : '';
+}
 function groupBadge(key) {
   return `<span class="group-badge">${icon(GROUP_ICON[key] || 'user')}${esc(groupLabel(key))}</span>`;
 }
@@ -217,7 +222,7 @@ function spotCard(s, opts = {}) {
         <h3>${esc(s.name)}</h3>
       </div>
       <p class="spot-meta">${esc(spotLocation(s, true))}</p>
-      <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}</div>
+      <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}${privateBadge(s)}</div>
       <ul class="feature-icons" aria-label="Features">
         ${feats.map((f) => `<li title="${f.label}">${icon(f.key)}<span class="sr-only">${f.label}</span></li>`).join('')}
       </ul>
@@ -497,6 +502,7 @@ const SpotDialog = {
           <p class="eyebrow eyebrow-gold">${esc(s.features.outdoors ? 'Outdoors' : b.name)}</p>
           <h2 id="sd-title">${esc(s.name)}</h2>
           <p class="spot-meta">${esc(spotLocation(s, true))}</p>
+          ${Store.isPrivateSpot(s) ? `<p class="sd-private">${icon('lock')}Private: only you can see this spot.</p>` : ''}
         </div>
         <div class="sd-actions">
           ${favButton(s.id, true)}
@@ -525,13 +531,13 @@ const SpotDialog = {
             <span class="yn" aria-hidden="true">${s.features[f.key] ? '✓' : '✗'}</span>${icon(f.key)}<span>${f.label}</span>
             <span class="sr-only">${s.features[f.key] ? 'yes' : 'no'}</span></li>`).join('')}
         </ul>
-        ${Store.isOwnSpot(s) ? `<div class="sd-danger">
+        ${Store.canDeleteSpot(s) ? `<div class="sd-danger">
           ${this.confirming ? `
-            <p><strong>Delete your spot?</strong> ${s.isLocalSpot ? 'It will be removed from this device.' : 'It will be removed for everyone.'}</p>
+            <p><strong>${s.shared ? 'Delete this shared spot?' : 'Delete your spot?'}</strong> ${s.isLocalSpot ? 'It will be removed from this device.' : s.shared ? 'It will be removed for everyone.' : 'It will be removed from your account.'}</p>
             <div class="sd-danger-row">
               <button type="button" class="btn btn-danger btn-sm" data-sd-delete-confirm>Delete spot</button>
               <button type="button" class="btn btn-ghost btn-sm" data-sd-delete-cancel>Cancel</button>
-            </div>` : `<button type="button" class="btn btn-ghost btn-sm danger-text" data-sd-delete>${icon('trash')}Delete my spot</button>`}
+            </div>` : `<button type="button" class="btn btn-ghost btn-sm danger-text" data-sd-delete>${icon('trash')}${s.shared ? 'Delete shared spot' : 'Delete my spot'}</button>`}
         </div>` : ''}
       </div>`;
   },
