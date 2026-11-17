@@ -19,7 +19,8 @@ with sync_playwright() as p:
     page.goto(BASE_URL + '/#map'); page.wait_for_selector('.map-wrap')
     page.evaluate("() => { scrollTo(0, 700); document.querySelector('.map-wrap').scrollLeft = 120; }")
     start = page.evaluate(STATE)
-    assert start['y'] == 700 and start['mx'] == 120, start
+    expected_y = page.evaluate('Math.min(700, document.documentElement.scrollHeight - innerHeight)')
+    assert start['y'] == expected_y and start['mx'] == 120, start
 
     page.evaluate(CLICK_BLDG, 'hbll'); page.wait_for_selector('.floor-tabs')
     assert page.evaluate(STATE)['h'] == '#building-hbll'
@@ -32,12 +33,12 @@ with sync_playwright() as p:
 
     page.click('[data-back-map]'); page.wait_for_selector('.map-wrap')
     s = page.evaluate(STATE)
-    assert s['y'] == 700 and s['mx'] == 120, ('Back to map should return to the same spot', s)
+    assert s['y'] == start['y'] and s['mx'] == 120, ('Back to map should return to the same spot', s)
 
     page.evaluate(CLICK_BLDG, 'jfsb'); page.wait_for_url('**/#building-jfsb')
     page.go_back(); page.wait_for_selector('.map-wrap')
     s = page.evaluate(STATE)
-    assert s['y'] == 700 and s['mx'] == 120, ('browser Back should return to the same spot', s)
+    assert s['y'] == start['y'] and s['mx'] == 120, ('browser Back should return to the same spot', s)
 
     page.click('a.nav-link[href="#list"]'); page.wait_for_url('**/#list')
     page.wait_for_selector('.results-bar')

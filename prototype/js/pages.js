@@ -73,7 +73,6 @@ Pages.map = (spotId) => {
   const buildingSvg = order.map((b) => {
     const m = mapBox(b), c = counts[b.id];
     const state = [
-      !c.total ? 'is-empty' : '',
       active && c.match ? 'is-match' : '', active && !c.match ? 'is-dim' : '',
       target && target.building === b.id ? 'is-target' : '',
     ].join(' ');
@@ -116,24 +115,14 @@ Pages.map = (spotId) => {
       <svg class="campus-map" viewBox="0 0 ${CAMPUS.w} ${CAMPUS.h}" role="group" aria-label="Map of BYU campus buildings with study spots">
         <rect class="map-ground" x="0" y="0" width="${CAMPUS.w}" height="${CAMPUS.h}" rx="18"/>
         ${campusBackdrop()}
-        <g class="map-compass" transform="translate(${CAMPUS.w - 34} ${CAMPUS.h - 34})"><circle r="16"/><path d="M0 -10 5 5 0 2-5 5z"/><text y="-21" text-anchor="middle">N</text></g>
+        <g class="map-compass" transform="translate(${CAMPUS.w - 30} ${CAMPUS.h - 30}) scale(0.8)"><circle r="16"/><path d="M0 -10 5 5 0 2-5 5z"/><text y="-21" text-anchor="middle">N</text></g>
         ${buildingSvg}
       </svg>
     </div>
     <p class="map-legend" id="campus-map-help">${active
       ? '<span class="legend-dot legend-match"></span>Has matching spots <span class="legend-dot legend-dim"></span>No matches'
-      : '<span class="legend-dot legend-has"></span>Has study spots <span class="legend-dot legend-dim"></span>No spots yet'}</p>
-    <h2 class="section-h">All buildings</h2>
-    <div class="building-grid">
-      ${BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => {
-        const c = counts[b.id];
-        const text = !c.total ? 'No spots yet · add one' : active ? `${c.match} of ${plural(c.total, 'spot')} match` : plural(c.total, 'study spot');
-        return `<a class="building-card${active && !c.match ? ' is-dim' : ''}${!c.total ? ' is-empty' : ''}${target && target.building === b.id ? ' is-target' : ''}" href="#building-${b.id}">
-          <span class="building-short">${b.short}</span>
-          <span class="building-card-text"><strong>${esc(b.name)}</strong><small>${text}</small></span>
-        </a>`;
-      }).join('')}
-    </div>
+      : '<span class="legend-dot legend-has"></span>Selectable buildings · Numbers show study spots'}</p>
+
   </section>`;
 };
 
@@ -151,9 +140,7 @@ Pages.outdoorMap = (spotId) => {
     ${target ? `<div class="map-selected" id="map-selected">${spotCard(target)}${targetFilteredOut ? '<p class="fact-note">The selected spot does not match your current filters.</p>' : ''}${!hasCampusPin(target) ? '<p class="fact-note">This spot has an original floor pin but no campus pin yet.</p>' : ''}<button type="button" class="link-btn" data-close-popup>Clear</button></div>` : ''}
     <div class="map-wrap" tabindex="0" role="region" aria-label="Scrollable outdoor campus map">${campusLocationSvg(null, visiblePins, target && target.id)}</div>
     <p class="fact-note">Approximate campus locations. Nearby buildings are landmarks, not indoor locations.</p>
-    <a class="btn btn-secondary" href="#add-outdoors">${icon('plus')}Add an outdoor spot</a>
-    ${spots.some(hasCampusPin) ? `<h2 class="section-h">Outdoor spots</h2><div class="spot-list">${spots.filter(hasCampusPin).map((s,i) => spotCard(s,{num:i+1})).join('')}</div>` : ''}
-    ${unplaced.length ? `<h2 class="section-h">Campus pin needed</h2><p class="fact-note">These existing outdoor spots keep their original location information. No campus position has been guessed.</p><div class="spot-list">${unplaced.map(s => spotCard(s)).join('')}</div>` : ''}
+    ${unplaced.length ? `<h2 class="section-h">Campus pin needed</h2><p class="fact-note">These existing outdoor spots keep their original location information. No campus position has been guessed.</p>` : ''}
   </section>`;
 };
 
@@ -252,7 +239,6 @@ Pages.favorites = () => {
           <span class="fav-star" aria-hidden="true">${icon('star')}</span>
           <div class="fav-text">
             <button type="button" class="fav-name" data-open-spot="${s.id}">${esc(s.name)}</button>
-            ${spotBadge(s)}
             <p class="spot-meta">${esc(spotLocation(s))}</p>
           </div>
           <div class="fav-actions">

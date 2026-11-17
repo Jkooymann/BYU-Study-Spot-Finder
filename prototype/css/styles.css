@@ -717,8 +717,8 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* Campus overview: quiet land-use colors keep the building footprints primary. */
 .campus-map {
   --campus-ground: #d2d7d5; --campus-lawn: #c8dfb8; --campus-ink: #617461;
-  --campus-building: #eae6d3; --campus-building-edge: #b9b39b;
-  --campus-label: #82765e; --campus-outline: #78909f; --campus-active: #fff9e8;
+  --campus-building: #d0d2d2; --campus-building-edge: #a2a8aa;
+  --campus-label: #626c70; --campus-outline: #78909f; --campus-active: #fff9e8;
   --campus-empty: #efecdf; --campus-empty-label: #617580;
 }
 .campus-map .map-ground { fill: var(--campus-ground); }
@@ -757,7 +757,6 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* Outdoor campus layer and placement reuse the existing campus illustration. */
 .map-layer-switch { grid-template-columns: 1fr 1fr; max-width: 440px; margin-bottom: 20px; }
 .campus-context { pointer-events: none; }
-.campus-context .bldg-short { font-size: 13px; }
 .outdoor-marker { cursor: pointer; outline: none; }
 .outdoor-marker circle { fill: var(--primary); stroke: var(--surface); stroke-width: 3; }
 .outdoor-marker text { fill: var(--surface); font-weight: 800; font-size: 14px; pointer-events: none; }
