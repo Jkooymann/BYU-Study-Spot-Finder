@@ -153,9 +153,7 @@ Pages.building = (buildingId, floorArg) => {
   const matchCount = items.filter((i) => i.match).length;
   const anyMatch = !active || spots.some((s) => Store.matches(s, f));
   return `<section class="page">
-    ${pageHeader({ back: `<a href="#map" class="back-link">${icon('back')}Back to map</a>`, title: esc(b.name) })}
-    ${toolbar()}
-    ${active && spots.length && !anyMatch ? noResults({ title: `No spots in the ${esc(b.short)} match your filters` }) : ''}
+    ${pageHeader({ back: `<a href="#map" class="back-link" data-back-map>${icon('back')}Back to map</a>`, title: esc(b.name) })}
     <div class="floor-tabs" role="tablist" aria-label="Floors">
       ${floors.map((fl) => {
         const m = spots.filter((s) => s.floor === fl && (!active || Store.matches(s, f))).length;
@@ -167,6 +165,8 @@ Pages.building = (buildingId, floorArg) => {
       ${floorPlanSvg(b.id, floor, items)}
       ${active ? `<p class="map-legend" id="campus-map-help"><span class="legend-dot legend-match"></span>Matches (${matchCount}) <span class="legend-dot legend-dim"></span>Doesn't match</p>` : ''}
     </div>
+    ${toolbar()}
+    ${active && spots.length && !anyMatch ? noResults({ title: `No spots in the ${esc(b.short)} match your filters` }) : ''}
     <h2 class="section-h">Spots on floor ${floor}</h2>
     <div class="spot-list">${items.length ? items.map((i) => spotCard(i.spot, { num: i.num, dim: !i.match })).join('') : '<p class="fact-note">No spots on this floor yet.</p>'}</div>
     <a class="btn btn-primary" href="#add-${b.id}-f${floor}">${icon('plus')}Add a spot on floor ${floor}</a>
