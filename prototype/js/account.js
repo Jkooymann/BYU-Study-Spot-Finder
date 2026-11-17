@@ -170,8 +170,8 @@ function accountErrorMessage(err, signup, email) {
 }
 
 /* Form fields shared by the account pages. */
-const netIdField = (value = '') => `<div class="field"><label class="label" for="account-netid">BYU Net ID</label><div class="account-email"><input class="input" id="account-netid" name="netId" value="${esc(value)}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="80" aria-describedby="netid-help netid-error"><span>@byu.edu</span></div><p class="account-note" id="netid-help">Enter your Net ID (or your full @byu.edu email). We’ll add @byu.edu for you.</p><p class="field-error" id="netid-error" hidden></p></div>`;
-const passwordField = (label, autocomplete, help) => `<div class="field"><label class="label" for="account-password">${label}</label><div class="account-password"><input class="input" id="account-password" name="password" type="password" autocomplete="${autocomplete}" required ${autocomplete === 'new-password' ? 'minlength="8"' : ''} aria-describedby="password-help password-error"><button type="button" class="account-show" data-show-password="account-password" aria-controls="account-password" aria-pressed="false">Show</button></div><p class="account-note" id="password-help">${help}</p><p class="field-error" id="password-error" hidden></p></div>`;
+const netIdField = (value = '') => `<div class="field"><label class="label" for="account-netid">BYU Net ID</label><div class="account-email"><input class="input" id="account-netid" name="netId" value="${esc(value)}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="80" aria-describedby="netid-error"><span>@byu.edu</span></div><p class="field-error" id="netid-error" hidden></p></div>`;
+const passwordField = (label, autocomplete, help) => `<div class="field"><label class="label" for="account-password">${label}</label><div class="account-password"><input class="input" id="account-password" name="password" type="password" autocomplete="${autocomplete}" required ${autocomplete === 'new-password' ? 'minlength="8"' : ''} aria-describedby="${help ? 'password-help ' : ''}password-error"><button type="button" class="account-show" data-show-password="account-password" aria-controls="account-password" aria-pressed="false">Show</button></div>${help ? `<p class="account-note" id="password-help">${help}</p>` : ''}<p class="field-error" id="password-error" hidden></p></div>`;
 const confirmField = (label) => `<div class="field"><label class="label" for="account-confirm">${label}</label><input class="input" id="account-confirm" name="confirmPassword" type="password" autocomplete="new-password" required aria-describedby="confirm-error"><p class="field-error" id="confirm-error" hidden></p></div>`;
 const formMessage = '<p id="account-message" class="account-message" role="alert" tabindex="-1" hidden></p>';
 const successNote = (html) => `<p class="account-message account-success" role="status">${icon('check')}<span>${html}</span></p>`;
@@ -180,10 +180,10 @@ const AccountPages = {
   titles: { welcome: 'Welcome', signup: 'Create account', login: 'Log in', forgot: 'Reset password', 'reset-password': 'Set a new password' },
   isPublic(route) { return Object.hasOwn(this.titles, route); },
   render(route) {
-    const intro = `<div class="account-intro"><span class="account-eyebrow">YOUR CAMPUS. YOUR STUDY SPOT.</span><h1>A little less searching.<br>A lot more studying.</h1><p>Find your quiet corner, your group’s next meeting place, or a seat near an outlet. Your next favorite spot is right here at BYU.</p><div class="account-perks"><span>${icon('pin')}Explore campus</span><span>${icon('filter')}Find your fit</span><span>${icon('star')}Save your favorites</span></div></div>`;
+    const intro = `<div class="account-intro"><h1>A little less searching.<br>A lot more studying.</h1><p>Find a quiet corner, a group table, or a seat by an outlet anywhere on BYU campus.</p></div>`;
     let content;
     if (route === 'welcome') {
-      content = `<span class="account-badge">${icon('map')}</span><h2 id="account-title">Find a place to focus.</h2><p class="account-sub">Log in or create an account to save your favorite study spots.</p><div class="account-actions"><a class="btn btn-primary btn-lg" href="#signup">Create an account</a><a class="btn btn-ghost btn-lg" href="#login">Log in</a></div><p class="account-note">Made for the way you study at BYU.</p>`;
+      content = `<h2 id="account-title">Save your favorite spots</h2><div class="account-actions"><a class="btn btn-primary btn-lg" href="#signup">Create an account</a><a class="btn btn-ghost btn-lg" href="#login">Log in</a></div>`;
     } else if (route === 'forgot') {
       content = this.forgot();
     } else if (route === 'reset-password') {
@@ -192,12 +192,12 @@ const AccountPages = {
       const signup = route === 'signup';
       const created = signup ? '' : this.createdMessage();
       const netIdValue = !signup && AccountSession.justCreated ? AccountSession.justCreated.netId : '';
-      content = `<a class="account-back" href="#welcome">${icon('back')}Back</a><h2 id="account-title">${signup ? 'Make yourself at home.' : 'Welcome back.'}</h2><p class="account-sub">${signup ? 'Create your account with your BYU Net ID.' : 'Log in with your BYU account to find your next spot.'}</p>
+      content = `<a class="account-back" href="#welcome">${icon('back')}Back</a><h2 id="account-title">${signup ? 'Make yourself at home.' : 'Welcome back.'}</h2>
         ${created}
         <form id="${signup ? 'signup' : 'login'}-form" novalidate>
-          ${signup ? `<div class="field"><label class="label" for="account-name">Your name</label><input class="input" id="account-name" name="displayName" autocomplete="name" required maxlength="60" aria-describedby="name-help name-error"><p class="account-note" id="name-help">This is what we’ll show in the top corner.</p><p class="field-error" id="name-error" hidden></p></div>` : ''}
+          ${signup ? `<div class="field"><label class="label" for="account-name">Your name</label><input class="input" id="account-name" name="displayName" autocomplete="name" required maxlength="60" aria-describedby="name-error"><p class="field-error" id="name-error" hidden></p></div>` : ''}
           ${netIdField(netIdValue)}
-          ${passwordField('Password', signup ? 'new-password' : 'current-password', signup ? 'Use at least 8 characters.' : 'Enter your account password.')}
+          ${passwordField('Password', signup ? 'new-password' : 'current-password', signup ? 'At least 8 characters.' : '')}
           ${signup ? confirmField('Confirm password') : '<p class="account-forgot"><a href="#forgot">Forgot password?</a></p>'}
           ${formMessage}
           <button class="btn btn-primary btn-lg account-submit" type="submit">${signup ? 'Create account' : 'Log in'}</button>

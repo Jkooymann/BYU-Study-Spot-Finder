@@ -10,9 +10,12 @@ const App = {
   renderedBase: null,
   navCount: 0,          // hash changes since load, used for "Back"
   flashId: null,        // newly added spot to highlight in the list
+  scrollMemo: {},       // route -> { y, mapX } so Back / returning to the map lands where you were
+  popNav: false,        // true while handling a browser Back / Forward
 
   init() {
-    window.addEventListener('hashchange', () => { this.navCount++; this.route(); });
+    window.addEventListener('popstate', () => { this.popNav = true; });
+    window.addEventListener('hashchange', () => { this.navCount++; this.route(); this.popNav = false; });
     this.route();
     if (Store.sharedStatus() !== 'off') {
       this.loadShared();
@@ -68,6 +71,13 @@ const App = {
         Store.setFilters(f);
       }
     }
+    // How many history steps back the map is, so "Back to map" returns to it (and its scroll spot)
+    // instead of stacking a new map page on top.
+    const prev = this.base || '';
+    if (this.popNav && h === prev) { /* closing spot details: nothing moved */ }
+    else if (!h.startsWith('building-') || this.popNav) this.mapDepth = 0;
+    else if (prev.startsWith('map')) this.mapDepth = 1;
+    else if (prev.startsWith('building-') && this.mapDepth) this.mapDepth++;
     const sameAsBefore = this.renderedBase === h;
     this.base = h;
     this.renderBase(h, sameAsBefore);
@@ -80,8 +90,27 @@ const App = {
     return '';
   },
 
+  /** Where the page should scroll to after drawing route h. */
+  scrollTarget(h, keepScroll) {
+    const prev = this.renderedBase || '';
+    const bldg = (r) => (r.startsWith('building-') ? r.slice(9).split('-f')[0] : null);
+    if (keepScroll) return { y: window.scrollY };
+    // Switching floors in the same building: stay put.
+    if (bldg(h) && bldg(h) === bldg(prev)) return { y: window.scrollY, sameBuilding: true };
+    // Back / Forward, or returning to the map or a building you already opened: go back to where you were.
+    const memo = this.scrollMemo[h];
+    if (memo && (this.popNav || h.startsWith('map') || bldg(h))) return memo;
+    return { y: 0 };
+  },
+
   renderBase(h, keepScroll = false) {
-    const y = window.scrollY;
+    if (this.renderedBase && this.renderedBase !== h) {
+      const w = $('.map-wrap');
+      this.scrollMemo[this.renderedBase] = { y: window.scrollY, mapX: w ? w.scrollLeft : null };
+    }
+    const tabsX = ($('.floor-tabs') || {}).scrollLeft || 0;
+    const oldMapX = $('.map-wrap') ? $('.map-wrap').scrollLeft : null;
+    const target = this.scrollTarget(h, keepScroll);
     let html;
     if (AccountPages.isPublic(h)) html = AccountPages.render(h);
     else if (h === 'start') html = Pages.start();
@@ -98,17 +127,22 @@ const App = {
     const names = { start: 'Get Started', map: 'Campus Map', list: 'Study Spots', favorites: 'Favorites', add: 'Add a Spot' };
     document.title = `${AccountPages.titles[h] || names[this.pageKeyFor(h)] || 'Floor View'} · BYU Study Spot Finder`;
     if (h.startsWith('building-')) document.title = `${(buildingById(h.slice(9).split('-f')[0]) || {}).name || 'Building'} · BYU Study Spot Finder`;
-    window.scrollTo(0, keepScroll ? y : 0);
+    window.scrollTo(0, target.y);
+    const tabs = $('.floor-tabs');
+    if (tabs && (target.sameBuilding || keepScroll)) tabs.scrollLeft = tabsX;
+    else if (tabs) { const on = $('.floor-tab.is-on', tabs); if (on) tabs.scrollLeft = on.offsetLeft - 16; }
     const flash = $('.spot-card.is-flash');
     if (flash) flash.scrollIntoView({ block: 'center', behavior: 'smooth' });
     // Phones: the map is wider than the screen, so center it on the selected building (or the library).
     const wrap = $('.map-wrap');
-    if (wrap && wrap.scrollWidth > wrap.clientWidth) {
+    if (wrap && target.mapX != null) wrap.scrollLeft = target.mapX;
+    else if (wrap && keepScroll && oldMapX != null) wrap.scrollLeft = oldMapX;
+    else if (wrap && wrap.scrollWidth > wrap.clientWidth) {
       const focus = $('.outdoor-marker.is-target circle') || $('.bldg.is-target .bldg-shape') || $('[data-building="hbll"] .bldg-shape');
       if (focus) { const r = focus.getBoundingClientRect(), w = wrap.getBoundingClientRect(); wrap.scrollLeft += r.x + r.width / 2 - w.x - wrap.clientWidth / 2; }
     }
     // Selected spot on the map: bring its card and the highlighted building into view.
-    if (!keepScroll && h.startsWith('map-spot-') && $('#map-selected')) $('#map-selected').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (!keepScroll && target.y === 0 && h.startsWith('map-spot-') && $('#map-selected')) $('#map-selected').scrollIntoView({ block: 'start', behavior: 'smooth' });
   },
 
   /** Load shared favorites from Supabase, then redraw. */
@@ -231,6 +265,10 @@ document.addEventListener('click', (e) => {
   // Open spot details
   const open = t.closest('[data-open-spot]');
   if (open) { App.go('spot-' + open.dataset.openSpot); return; }
+
+  // Back to map: step back through history when we came from the map.
+  const backMap = t.closest('[data-back-map]');
+  if (backMap && App.mapDepth > 0) { e.preventDefault(); history.go(-App.mapDepth); return; }
 
   const layer = t.closest('[data-map-layer]');
   if (layer) {

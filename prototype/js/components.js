@@ -98,6 +98,10 @@ function menuItem({ label, sub, ic, attrs = '', current = false, divider = false
     </button>`;
 }
 
+/** Keep --topbar-h in step with the bar's real height (the Home page uses it to fill the screen). */
+function syncTopbarHeight() { document.documentElement.style.setProperty('--topbar-h', $('#topbar').offsetHeight + 'px'); }
+window.addEventListener('resize', syncTopbarHeight);
+
 function renderTopBar(pageKey) {
   const link = (route, label, ic) => {
     const cur = pageKey === route;
@@ -110,7 +114,7 @@ function renderTopBar(pageKey) {
         <span class="brand-name"><span class="brand-byu">BYU</span> Study Spot Finder</span>
       </a>
       <nav class="main-nav" aria-label="Main">
-        ${link('map', 'Map', 'map')}${link('list', 'List', 'list')}${link('favorites', 'Favorites', 'star')}
+        ${link('start', 'Home', 'home')}${link('map', 'Map', 'map')}${link('list', 'List', 'list')}${link('favorites', 'Favorites', 'star')}
       </nav>
       <div class="topbar-right">
         ${accountControl(pageKey)}
@@ -126,6 +130,7 @@ function renderTopBar(pageKey) {
         </div>
       </div>
     </div>`;
+  syncTopbarHeight();
 }
 /** Top-right account control: "Log in" when logged out, or your name with a Log out dropdown. */
 function accountControl(pageKey) {

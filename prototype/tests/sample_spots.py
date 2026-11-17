@@ -17,4 +17,4 @@ def use_sample_spots(page):
         assert _EMPTY in body, 'js/data.js no longer has the empty SPOTS line'
         route.fulfill(body=body.replace(_EMPTY, spots), content_type='application/javascript')
 
-    page.route('**/js/data.js', handle)
+    page.route('**/js/data.js*', handle)
