@@ -40,6 +40,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /* ---------------- Icons (simple line icons, 24×24) ---------------- */
 const ICONS = {
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   quietZone: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
   talkingAllowed: '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.2A8 8 0 1 1 20 12z"/><path d="M9 11h.01M13 11h.01M17 11h.01"/>',
@@ -89,6 +90,9 @@ const HOME_MENU = [
   { key: 'favorites', label: 'Favorites', sub: 'Your saved study spots', icon: 'star', route: 'favorites' },
   { key: 'add', label: 'Add a Spot', sub: 'Share a spot you love', icon: 'plus', route: 'add' },
   { key: 'reset', label: 'Start Over', sub: 'Clear all filters', icon: 'refresh', route: 'start', clear: true, divider: true },
+  // Only shown to the team admin account (Store.isAdmin(), from the database). The page and its
+  // data are protected separately, so hiding this item is not the only thing keeping people out.
+  { key: 'okr', label: 'OKR Trackers', sub: 'Team admin only', icon: 'chart', route: 'okr', adminOnly: true, divider: true },
 ];
 
 function menuItem({ label, sub, ic, attrs = '', current = false, divider = false }) {
@@ -122,7 +126,7 @@ function renderTopBar(pageKey) {
         <div class="menu-wrap">
           <button id="home-btn" class="bar-btn menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="home-menu" aria-label="Menu">${icon('menu')}</button>
           <div id="home-menu" class="menu" role="menu" aria-label="Menu" hidden>
-            ${HOME_MENU.map((m) => menuItem({
+            ${HOME_MENU.filter((m) => !m.adminOnly || Store.isAdmin()).map((m) => menuItem({
               label: m.label, sub: m.sub, ic: m.icon, divider: m.divider,
               current: pageKey === m.key,
               attrs: `data-menu-route="${m.route}"${m.clear ? ' data-menu-clear' : ''}`,

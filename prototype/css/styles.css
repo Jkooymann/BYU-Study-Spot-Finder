@@ -767,3 +767,9 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .outdoor-marker:hover circle, .outdoor-marker:focus-visible circle, .outdoor-marker.is-target circle { stroke: var(--accent); stroke-width: 5; }
 #add-campus-plan { cursor: crosshair; }
 #add-campus-plan:focus-visible { outline: 3px solid var(--accent); }
+
+/* ---------------- OKR Trackers (#okr, team admin only) ---------------- */
+/* One card per tracker; more trackers fill in the grid (js/okr/okr-trackers-page.js). */
+.okr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+.okr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; box-shadow: var(--shadow); min-width: 0; }
+.okr-checking { color: var(--muted); }

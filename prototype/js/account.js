@@ -49,6 +49,8 @@ const AccountSession = {
   },
 
   async signOut() {
+    // OKR 1: send the session's last active time while the login still works.
+    if (typeof SessionTracker !== 'undefined') { try { await SessionTracker.flush(); } catch (_) { /* not important */ } }
     try { await DB.signOut(); } catch (e) { console.error('Sign out failed', e); }
     await App.loadShared();
     App.go('start');

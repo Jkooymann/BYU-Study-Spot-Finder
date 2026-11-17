@@ -74,7 +74,7 @@ if r.returncode: raise SystemExit('Could not create the test database (is Postgr
 ok, _, err = psql(STUB)
 if not ok: raise SystemExit('Supabase stand-in failed: ' + err)
 for f in sorted(os.listdir(MIG_DIR)):
-    if f.endswith('.sql') and f != os.path.basename(MIG):
+    if f.endswith('.sql') and f < os.path.basename(MIG):  # only the migrations before it
         ok, _, err = psql(open(os.path.join(MIG_DIR, f)).read())
         if not ok: raise SystemExit(f'{f} failed: {err}')
 ok, _, err = psql(open(os.path.join(SUPA, 'seed.sql')).read())

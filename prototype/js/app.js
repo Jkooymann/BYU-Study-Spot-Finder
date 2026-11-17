@@ -3,6 +3,7 @@
    Routes:  #start  #map  #map-spot-<id>  #building-<id>[-f<floor>]
             #spot-<id> (Spot Details over the page you came from)
             #list  #favorites  #add  #add-<building id> (Add a Spot with the building picked)
+            #okr (OKR Trackers: team admin only, js/okr/okr-trackers-page.js)
    ========================================================================= */
 
 const App = {
@@ -86,7 +87,7 @@ const App = {
   pageKeyFor(h) {
     if (h.startsWith('map') || h.startsWith('building')) return 'map';
     if (h.startsWith('favorites')) return 'favorites';
-    if (['list', 'add', 'start'].includes(h)) return h;
+    if (['list', 'add', 'start', 'okr'].includes(h)) return h;
     return '';
   },
 
@@ -120,11 +121,16 @@ const App = {
     else if (h === 'list') html = Pages.list();
     else if (h === 'favorites' || h === 'favorites-filters') html = Pages.favorites(); // old saved-filters link still works
     else if (h === 'add') html = Pages.add();
+    // Admin only: the page shows nothing for anyone else, and the numbers come from a database
+    // function that refuses non-admins (so typing #okr in the address bar gets you nothing).
+    else if (h === 'okr' && typeof OKRTrackersPage !== 'undefined') html = OKRTrackersPage.render();
     else html = Pages.notFound();
     renderTopBar(AccountPages.isPublic(h) ? 'account' : this.pageKeyFor(h));
+    if (typeof OKRTrackersPage !== 'undefined') OKRTrackersPage.unmount();
     $('#app').innerHTML = html;
     this.renderedBase = h;
-    const names = { start: 'Get Started', map: 'Campus Map', list: 'Study Spots', favorites: 'Favorites', add: 'Add a Spot' };
+    if (h === 'okr' && typeof OKRTrackersPage !== 'undefined') OKRTrackersPage.mount();
+    const names = { start: 'Get Started', map: 'Campus Map', list: 'Study Spots', favorites: 'Favorites', add: 'Add a Spot', okr: 'OKR Trackers' };
     document.title = `${AccountPages.titles[h] || names[this.pageKeyFor(h)] || 'Floor View'} · BYU Study Spot Finder`;
     if (h.startsWith('building-')) document.title = `${(buildingById(h.slice(9).split('-f')[0]) || {}).name || 'Building'} · BYU Study Spot Finder`;
     window.scrollTo(0, target.y);

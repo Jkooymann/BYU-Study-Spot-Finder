@@ -32,6 +32,7 @@ Favorite spots and spots you add on the Add a Spot page are saved in the team's 
 | 8 Filter Panel | side panel (desktop) / bottom sheet (mobile) on Map, Floor View, and List |
 | 9 Favorites | `#favorites` |
 | 10 Add a Spot | `#add`, or `#add-jkb` with a building already picked |
+| OKR Trackers (team admin only) | `#okr`, from ☰ → OKR Trackers |
 
 ## Notes on decisions
 
@@ -105,6 +106,32 @@ Set up by `supabase/migrations/20261118010000_private_and_shared_spots.sql`.
 Postgres set up like Supabase and tries 46 ways to break the rules (needs Postgres installed
 locally; `PGPORT` etc. pick the server; it never touches the real project).
 `python3 prototype/tests/spot_visibility_flow.py` checks what the pages show for each kind of user.
+
+## OKR Trackers (team admin only)
+
+The team admin account (the one in `public.app_admin`, see above) gets an **OKR Trackers** item
+at the bottom of the ☰ menu. It opens `#okr`, which shows the OKR 1 tracker (share of sessions
+under 10 minutes) with a Refresh button. Anyone else who opens `#okr` sees only a "for the team
+admin" message, and the database function behind the numbers (`okr1_stats()`) refuses every
+account except the admin, so the data stays private even if someone calls it directly.
+
+Sessions count **active time only**: the clock stops 2 minutes after the last click, tap, key
+press or scroll, and while the page is hidden; coming back later starts a new session. The admin
+account's own visits are never recorded or counted. Details, and how to add OKRs 2–4, are in
+[`js/okr/README.md`](js/okr/README.md).
+
+### Set it up (once)
+
+Run `supabase/migrations/20261118020000_okr_admin_only_and_active_time.sql` in Supabase →
+SQL Editor (after the private/shared spots migration). Every row of the checklist at the end
+should say `ok`.
+
+### Checking the rules
+
+`python3 supabase/tests/okr_admin_rls.py` (local Postgres, like the spot rules check) tries to
+read the numbers as a student and a logged-out visitor, record the admin, and fake active time.
+`python3 prototype/tests/okr_flow.py` checks the menu, the page guard, the Refresh button and
+the active-time rules with a fake clock.
 
 ## AI recommendations (✨ Suggest spots)
 
@@ -212,7 +239,7 @@ Visitors land on `#start` and can use the whole site without logging in. The
 With the prototype server running on port 8000, run
 `python3 prototype/tests/account_flow.py`, `python3 prototype/tests/ui_flow.py`,
 `python3 prototype/tests/recommend_flow.py` and
-`python3 prototype/tests/password_reset_flow.py`
+`python3 prototype/tests/password_reset_flow.py` (and `okr_flow.py`)
 from the repository root. This requires
 Python Playwright and Chromium (`CHROMIUM_PATH` can override `/usr/bin/chromium`;
 `TEST_BASE_URL` can override the local server URL; `CONFIRM=1` simulates email

@@ -32,9 +32,11 @@ const OKRApi = (() => {
       body: JSON.stringify(args),
     });
     if (!res.ok) {
-      let detail = '';
-      try { detail = (await res.json()).message || ''; } catch (_) { /* not JSON */ }
-      throw new Error(`${name} failed (${res.status}) ${detail}`.trim());
+      let body = {};
+      try { body = await res.json(); } catch (_) { /* not JSON */ }
+      // notAllowed: the database refused (not the admin account). Pages show their own wording.
+      throw Object.assign(new Error(`${name} failed (${res.status}) ${body.message || ''}`.trim()),
+        { status: res.status, notAllowed: body.code === '42501' || res.status === 401 || res.status === 403 });
     }
     return res.json();
   }
@@ -43,8 +45,15 @@ const OKRApi = (() => {
     ready,
     /** New session for the logged-in student; null if nobody is logged in. */
     startSession: () => rpc('okr_start_session', {}, { asUser: true }),
-    /** true = recorded, false = not this student's session (start a new one), null = logged out. */
-    heartbeat: (sessionId, opts = {}) => rpc('okr_heartbeat', { p_session_id: sessionId }, { ...opts, asUser: true }),
-    stats: async () => (await rpc('okr1_stats'))[0],
+    /** Report the session's active seconds so far.
+        true = recorded, false = not this student's session (start a new one), null = logged out. */
+    heartbeat: (sessionId, activeSeconds, opts = {}) =>
+      rpc('okr_heartbeat', { p_session_id: sessionId, p_active_seconds: Math.round(activeSeconds) }, { ...opts, asUser: true }),
+    /** OKR 1 numbers. Only the admin account gets them; anyone else gets an error with notAllowed. */
+    stats: async () => {
+      const rows = await rpc('okr1_stats', {}, { asUser: true });
+      if (rows === null) throw Object.assign(new Error('okr1_stats: not logged in'), { notAllowed: true });
+      return rows[0];
+    },
   };
 })();

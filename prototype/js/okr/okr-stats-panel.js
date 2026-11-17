@@ -1,12 +1,8 @@
 /* =========================================================================
    OKR 1: stats panel.
-   A self-contained component. To show it on any page (e.g. the admin page):
-
-     <div id="okr1-panel"></div>
-     <script src="js/supabase-config.js"></script>
-     <script src="js/okr/okr-api.js"></script>
-     <script src="js/okr/okr-stats-panel.js"></script>
-     <script>OKRStatsPanel.mount(document.getElementById('okr1-panel'));</script>
+   A self-contained component, shown on the admin's OKR Trackers page
+   (js/okr/okr-trackers-page.js): OKRStatsPanel.mount(element).
+   The numbers come from okr1_stats(), which only answers the admin account.
 
    It brings its own styles (scoped to .okr1-panel) and uses the site's color
    tokens from css/styles.css when they exist, with fallbacks when they don't.
@@ -38,6 +34,9 @@ const OKRStatsPanel = (() => {
   .okr1-foot button { font: inherit; font-weight: 600; min-height: 36px; padding: 0 14px; cursor: pointer;
     border-radius: 999px; border: 1px solid var(--border, #d8e0eb); background: var(--surface, #fff); color: var(--text, #15202f); }
   .okr1-error { color: var(--danger, #b42318); }
+  .okr1-status { color: var(--muted, #5a6779); }
+  .okr1-body.is-loading .okr1-big, .okr1-body.is-loading .okr1-bar, .okr1-body.is-loading .okr1-facts { opacity: .55; transition: opacity .15s; }
+  .okr1-foot button:disabled { cursor: progress; opacity: .7; }
   `;
 
   function injectStyles() {
@@ -84,27 +83,51 @@ const OKRStatsPanel = (() => {
     container.classList.add('okr1-panel');
     container.innerHTML = `
       <h2>OKR 1: Short sessions</h2>
-      <p class="okr1-goal">Goal: 80% of sessions under 10 minutes, not counting each student's first session.</p>
-      <div class="okr1-body" aria-live="polite">Loading…</div>
-      <div class="okr1-foot"><span class="okr1-updated"></span><button type="button">Refresh</button></div>`;
+      <p class="okr1-goal">Goal: 80% of sessions under 10 minutes, not counting each student's first session.
+        Only active time counts: the clock stops after 2 minutes without a click, tap, key press or scroll, and while the page is hidden.</p>
+      <div class="okr1-body" aria-live="polite"><p class="okr1-status">Loading…</p></div>
+      <div class="okr1-foot"><span class="okr1-updated"></span><button type="button" class="okr1-refresh">Refresh</button></div>`;
     const bodyEl = container.querySelector('.okr1-body');
     const updatedEl = container.querySelector('.okr1-updated');
+    const button = container.querySelector('.okr1-refresh');
+    let latest = 0;     // only the newest request may change the panel
+    let destroyed = false;
+
+    function setLoading(on) {
+      button.disabled = on;
+      button.textContent = on ? 'Refreshing…' : 'Refresh';
+      bodyEl.setAttribute('aria-busy', String(on));
+      bodyEl.classList.toggle('is-loading', on);
+    }
 
     async function refresh() {
+      const req = ++latest;
+      setLoading(true);
+      if (!bodyEl.querySelector('.okr1-big')) bodyEl.innerHTML = '<p class="okr1-status">Loading…</p>';
       try {
-        bodyEl.innerHTML = body(await OKRApi.stats());
-        updatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        const stats = await OKRApi.stats();
+        if (destroyed || req !== latest) return;
+        bodyEl.innerHTML = body(stats || {});
+        updatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
       } catch (err) {
+        if (destroyed || req !== latest) return;
         console.warn('[OKR] stats failed', err);
-        bodyEl.innerHTML = `<p class="okr1-error">Couldn't load the numbers. Has
-          <code>20261116220000_okr1_session_tracking.sql</code> been run in Supabase? (${esc(err.message)})</p>`;
+        bodyEl.innerHTML = `<p class="okr1-error" role="alert">${err && err.notAllowed
+          ? 'Only the team admin account can see these numbers. Log in with that account and try again.'
+          : 'Couldn’t load the numbers. Check your connection and press Refresh to try again.'}</p>`;
+        updatedEl.textContent = '';
+      } finally {
+        if (!destroyed && req === latest) setLoading(false);
       }
     }
 
-    container.querySelector('button').addEventListener('click', refresh);
+    button.addEventListener('click', refresh);
     const timer = refreshMs ? setInterval(refresh, refreshMs) : null;
     refresh();
-    return { refresh, destroy() { clearInterval(timer); container.innerHTML = ''; container.classList.remove('okr1-panel'); } };
+    return {
+      refresh,
+      destroy() { destroyed = true; clearInterval(timer); container.innerHTML = ''; container.classList.remove('okr1-panel'); },
+    };
   }
 
   return { mount };
