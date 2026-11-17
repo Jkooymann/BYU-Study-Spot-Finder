@@ -28,7 +28,7 @@ Pages.start = () => {
   const matches = Store.filtered(startFilters()).length;
   const showLabel = sel.size ? `Show ${plural(matches, 'matching spot')}` : `Browse all ${plural(spots.length, 'spot')}`;
   return `<section class="page start">
-    ${pageHeader({ title: 'What do you want in your study spot?', sub: 'Pick what matters and we’ll find campus spots that have it.', display: true })}
+    ${pageHeader({ title: 'What do you want in your study spot?', sub: 'Pick some filters to get started.', display: true })}
     <div class="start-chips" role="group" aria-label="What you want in a study spot">
       ${START_CHIPS.map((c) => `<button type="button" class="chip chip-toggle chip-lg${sel.has(c.key) ? ' is-on' : ''}" aria-pressed="${sel.has(c.key)}" data-start-chip="${c.key}">
         ${icon(c.icon)}<span>${c.label}</span><span class="chip-check">${icon('check')}</span></button>`).join('')}

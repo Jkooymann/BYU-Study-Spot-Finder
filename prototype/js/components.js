@@ -71,6 +71,10 @@ function menuItem({ label, sub, ic, attrs = '', current = false, divider = false
     </button>`;
 }
 
+/** Keep --topbar-h in step with the bar's real height (the Home page uses it to fill the screen). */
+function syncTopbarHeight() { document.documentElement.style.setProperty('--topbar-h', $('#topbar').offsetHeight + 'px'); }
+window.addEventListener('resize', syncTopbarHeight);
+
 function renderTopBar(pageKey) {
   const link = (route, label, ic) => {
     const cur = pageKey === route;
@@ -99,6 +103,7 @@ function renderTopBar(pageKey) {
         </div>
       </div>
     </div>`;
+  syncTopbarHeight();
 }
 /** Top-right account control: "Log in" when logged out, or your name with a Log out dropdown. */
 function accountControl(pageKey) {
