@@ -125,8 +125,8 @@ function describe(s: Spot): string {
   const bits = [
     `id ${s.id}`,
     `"${clip(s.name, 80)}"`,
-    s.building && `in ${s.building}`,
-    s.floor != null && `floor ${s.floor}`,
+    s.building && `${s.indoors ? 'in' : 'near'} ${s.building}`,
+    s.indoors && s.floor != null && `floor ${s.floor}`,
     s.where && clip(s.where, 60),
     s.indoors ? 'indoors' : 'outdoors',
     s.noise && `noise: ${s.noise}`,

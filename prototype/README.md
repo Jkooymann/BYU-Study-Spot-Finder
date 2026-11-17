@@ -240,3 +240,47 @@ Checks: `python3 prototype/tests/verified_floors.py` (local server required;
 `TEST_BASE_URL` supported) verifies every supplied tab and basement pin add/reload.
 `node prototype/tests/basement_db.cjs` exercises the real DB adapter against an
 isolated fake client to verify basement serialization without shared writes.
+
+
+## Outdoor campus spots
+
+The campus map has **Buildings | Outdoor spots** views. Outdoor spots sets the
+shared Outdoors filter; Buildings clears Outdoors to Anywhere while preserving
+other filters. Amenities, group size and optional nearby-building filters apply
+to outdoor pins. Clearing Outdoors or choosing Indoors returns to Buildings.
+Selecting Show on map from an outdoor spot opens its campus layer. A selected
+spot outside the active filters remains highlighted with an explanatory note.
+
+In Add a Spot, choose Outdoors to place a pin on the campus illustration (click,
+tap, or focus the map and use arrow keys). Building context is optional, and no
+floor is required. The same details, favorites, ownership and deletion flows work
+for outdoor spots. The list groups outdoor spots together, including those with
+nearby buildings. Campus coordinates are approximate percentages of the fixed
+campus illustration, not GPS coordinates or floor-plan positions.
+
+**Database deployment:** before publishing this frontend, the database owner must
+apply `supabase/migrations/20261117010000_outdoor_campus_locations.sql` through the
+team's Supabase migration process. It permits a null building only for outdoor
+spots, adds `campus_map_x_percent` / `campus_map_y_percent`, and validates paired,
+bounded campus coordinates without floor coordinates. It preserves existing IDs,
+favorites, ownership policies and floor pins. Existing outdoor floor pins are
+listed under Campus pin needed; their campus location is never guessed. They keep
+an Original floor pin link in details. This version does not add an edit/repin flow.
+Indoor reads and writes continue to work before the migration; outdoor writes
+require it. No hosted migration is applied by running the website or local tests.
+
+Redeploy `recommend-spots` through the existing owner deployment workflow to pick
+up outdoor wording (near a building, with no floor). Its existing queries already
+allow a missing building or floor. Gemini credentials remain in Supabase.
+
+Local checks (server running, repository root):
+
+```sh
+TEST_BASE_URL=http://127.0.0.1:8000 python3 prototype/tests/outdoor_flow.py
+node prototype/tests/outdoor_db.cjs
+```
+
+These checks cover campus placement/reload, filter synchronization, optional
+landmarks, legacy positions, details, favorites, database serialization and mobile
+layout without writing to hosted Supabase. Continue running the existing browser
+and basement adapter regression scripts as documented above.

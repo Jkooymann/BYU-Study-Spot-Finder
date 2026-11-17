@@ -751,3 +751,14 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* Exterior silhouettes used for the first floor-map pass. */
 .fp-outline { fill: var(--surface); stroke: var(--muted); stroke-width: 2; }
 .floorplan.is-interactive .fp-pin { pointer-events: none; }
+
+/* Outdoor campus layer and placement reuse the existing campus illustration. */
+.map-layer-switch { grid-template-columns: 1fr 1fr; max-width: 440px; margin-bottom: 20px; }
+.campus-context { pointer-events: none; }
+.campus-context .bldg-short { font-size: 13px; }
+.outdoor-marker { cursor: pointer; outline: none; }
+.outdoor-marker circle { fill: var(--primary); stroke: var(--surface); stroke-width: 3; }
+.outdoor-marker text { fill: var(--surface); font-weight: 800; font-size: 14px; pointer-events: none; }
+.outdoor-marker:hover circle, .outdoor-marker:focus-visible circle, .outdoor-marker.is-target circle { stroke: var(--accent); stroke-width: 5; }
+#add-campus-plan { cursor: crosshair; }
+#add-campus-plan:focus-visible { outline: 3px solid var(--accent); }

@@ -148,10 +148,9 @@ const Recommend = {
       case 'ok':
         return `<p class="ai-sub">Based on your ${plural(this.favCount, 'favorite')}</p>
           <ol class="ai-list">${this.picks.map(({ spot, reason }) => {
-            const b = buildingById(spot.building) || { short: spot.building };
             return `<li><a class="ai-item" href="#spot-${esc(spot.id)}">
               <span class="ai-item-name">${esc(spot.name)}</span>
-              <span class="ai-item-meta">${esc(b.short)} · Floor ${esc(spot.floor)}</span>
+              <span class="ai-item-meta">${esc(spotLocation(spot, true))}</span>
               ${reason ? `<span class="ai-item-why">${esc(reason)}</span>` : ''}
             </a></li>`;
           }).join('')}</ol>
