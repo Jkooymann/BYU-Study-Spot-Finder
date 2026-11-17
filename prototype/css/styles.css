@@ -698,6 +698,10 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .account-submit { width: 100%; margin-top: 8px; }
 .account-switch { margin-top: 24px; text-align: center; font-size: .9rem; color: var(--muted); }
 .account-switch a { font-weight: 700; }
+.account-switch .link-btn { padding: 0 2px; min-height: 0; font-size: inherit; }
+.account-forgot { margin-top: -10px; text-align: right; font-size: .9rem; }
+.account-forgot a { font-weight: 700; }
+.account-card h2 + .account-success { margin-top: 16px; }
 .account-message { padding: 12px; background: var(--primary-soft); border-radius: var(--r-sm); margin-bottom: 16px; }
 .account-success { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); color: var(--text); line-height: 1.5; }
 .account-success .ic { width: 20px; height: 20px; flex: none; margin-top: 2px; color: var(--accent-ink); }

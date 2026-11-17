@@ -13,6 +13,15 @@ const DB = (() => {
     && typeof SUPABASE_ANON_KEY === 'string' && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.startsWith('PASTE_');
   const client = configured ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+  // A Supabase email link brings people back with #access_token=…&type=recovery
+  // (or #error=…&error_code=otp_expired). Note what kind of link it was now,
+  // before the router changes the address. null when the page wasn't opened from a link.
+  const authLink = (() => {
+    const p = new URLSearchParams(location.hash.slice(1));
+    if (!p.has('access_token') && !p.has('error') && !p.has('error_code')) return null;
+    return { type: p.get('type') || '', error: p.get('error_code') || p.get('error') || '' };
+  })();
+
   async function students() {
     const { data, error } = await client.from('student_user')
       .select('user_id, display_name, byu_net_id').order('user_id');
@@ -210,9 +219,45 @@ const DB = (() => {
     throw error;
   }
 
+  /* ---------------------------------------------------------------------
+     Password reset. Supabase emails a one-time link (valid for an hour by
+     default) that brings the person back here already logged in, so they
+     can choose a new password with updatePassword().
+     --------------------------------------------------------------------- */
+
+  /**
+   * Ask Supabase to email a reset link. Supabase answers the same way whether
+   * or not the address has an account, so this doesn't reveal who has one.
+   * The link returns to this page; its address must be listed under
+   * Authentication → URL Configuration → Redirect URLs in Supabase.
+   */
+  async function requestPasswordReset(email) {
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: location.origin + location.pathname,
+    });
+    if (error) throw error;
+  }
+
+  /** Set a new password for whoever is logged in (after opening a reset link). */
+  async function updatePassword(password) {
+    const { error } = await client.auth.updateUser({ password });
+    if (error) throw error;
+  }
+
+  /**
+   * Wait until Supabase has read the email link in the address (it does this
+   * on its own when the page loads). Returns true if someone is now logged in.
+   */
+  async function finishAuthLink() {
+    if (!client) return false;
+    const { data } = await client.auth.getSession();
+    return !!(data && data.session);
+  }
+
   return {
     ready: !!client, students, favoriteSpotIds, addFavorite, removeFavorite,
     buildings, studentSpots, addSpot, deleteSpot,
     signUp, signIn, signOut, currentStudent, recommendSpots,
+    authLink, finishAuthLink, requestPasswordReset, updatePassword,
   };
 })();

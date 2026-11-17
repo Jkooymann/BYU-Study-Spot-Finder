@@ -14,6 +14,40 @@ const AccountSession = {
   /** Set right after sign-up so the Log in page can say "Account created". */
   justCreated: null, // { netId, needsEmailConfirm }
 
+  /* ---- Password reset ---- */
+  resetSentTo: null,      // email shown in "If there's an account for …, we sent a link"
+  justReset: false,       // Log in page says "Password updated"
+  linkProblem: false,     // the reset link was expired, already used, or invalid
+  authLinkHandled: false,
+
+  /** True after opening a valid reset link in this tab, until the new password is saved. */
+  get recovering() {
+    try { return sessionStorage.getItem('byuStudySpots.recovering') === '1'; } catch (e) { return !!this._recovering; }
+  },
+  setRecovering(on) {
+    this._recovering = on;
+    try { if (on) sessionStorage.setItem('byuStudySpots.recovering', '1'); else sessionStorage.removeItem('byuStudySpots.recovering'); } catch (e) { /* storage blocked */ }
+  },
+
+  /**
+   * The page was opened from a Supabase email link. Wait for Supabase to read
+   * it (which logs the person in for a reset link), then show the right page:
+   * a valid reset link → #reset-password; an expired/used one → #forgot.
+   */
+  async handleAuthLink() {
+    this.authLinkHandled = true;
+    const link = DB.authLink;
+    $('#app').innerHTML = '<section class="account-layout"><p class="account-sub" role="status">One moment…</p></section>';
+    let loggedIn = false;
+    try { loggedIn = await DB.finishAuthLink(); } catch (e) { console.error('Could not read the email link', e && (e.code || e.message)); }
+    let target = 'start';
+    if (link.type === 'recovery' && loggedIn && !link.error) { this.setRecovering(true); target = 'reset-password'; }
+    else if (link.type === 'recovery' || link.error) { this.linkProblem = true; target = 'forgot'; }
+    history.replaceState(null, '', '#' + target);
+    App.route();
+    App.loadShared();
+  },
+
   async signOut() {
     try { await DB.signOut(); } catch (e) { console.error('Sign out failed', e); }
     await App.loadShared();
@@ -32,6 +66,20 @@ const AccountAPI = {
     const { needsEmailConfirm } = await DB.signUp({ email, password, displayName, netId });
     if (!needsEmailConfirm) await DB.signOut();
     return { needsEmailConfirm };
+  },
+
+  /** Email a reset link. Resolves the same way whether or not the address has an account. */
+  async requestReset(email) {
+    if (!DB.ready) throw Object.assign(new Error('Password reset is not available right now. Please try again later.'), { friendly: true });
+    await DB.requestPasswordReset(email);
+  },
+
+  /** Save the new password, then log out so the person logs in with it. */
+  async saveNewPassword(password) {
+    if (!DB.ready) throw Object.assign(new Error('Password reset is not available right now. Please try again later.'), { friendly: true });
+    await DB.updatePassword(password);
+    try { await DB.signOut(); } catch (e) { console.error('Sign out after reset failed', e); }
+    await App.loadShared();
   },
 
   /** Log in and load this student's favorites. Returns their student_user row. */
@@ -67,6 +115,25 @@ function parseByuEmail(raw) {
   return { netId: local, email: `${local}@byu.edu` };
 }
 
+const isNetworkError = (err) => {
+  const msg = String((err && err.message) || '').toLowerCase();
+  return (err && err.name === 'AuthRetryableFetchError') || msg.includes('failed to fetch') || msg.includes('network') || msg.includes('load failed');
+};
+
+/** Message for the "Set a new password" form. */
+function resetErrorMessage(err) {
+  const code = String((err && err.code) || '');
+  const msg = String((err && err.message) || '').toLowerCase();
+  if (err && err.friendly) return err.message;
+  if (isNetworkError(err)) return 'We couldn’t reach the server. Check your internet connection and try again.';
+  if (code === 'same_password' || msg.includes('different from the old')) return 'That’s your current password. Choose a different one.';
+  if (code === 'weak_password' || (err && err.name === 'AuthWeakPasswordError') || msg.includes('password should')) return 'That password is too easy to guess. Try a longer one.';
+  if (code === 'session_not_found' || code === 'session_expired' || (err && err.name === 'AuthSessionMissingError') || msg.includes('session')) {
+    return 'This reset link has expired. Request a new one and try again.';
+  }
+  return 'We couldn’t save your new password. Please try again later.';
+}
+
 /**
  * Turn a Supabase error into a short message that is safe to show: it says what
  * went wrong and what to do next, never the raw error. `email` is the address
@@ -83,7 +150,7 @@ function accountErrorMessage(err, signup, email) {
     return 'We couldn’t reach the server. Check your internet connection and try again.';
   }
   if (code === 'user_already_exists' || code === 'email_exists' || msg.includes('already registered')) return 'An account with that Net ID already exists. Try logging in instead.';
-  if (code === 'weak_password' || msg.includes('password should')) return 'That password is too easy to guess. Try a longer one.';
+  if (code === 'weak_password' || (err && err.name === 'AuthWeakPasswordError') || msg.includes('password should')) return 'That password is too easy to guess. Try a longer one.';
   if (code === 'invalid_credentials' || msg.includes('invalid login')) return 'That Net ID and password don’t match. Please try again.';
   if (code === 'email_not_confirmed' || msg.includes('not confirmed')) return 'Please confirm your account first. Open the email we sent to your BYU address and click the link.';
   if (code === 'over_email_send_rate_limit') return 'We’ve sent too many emails in a short time. Please wait a few minutes, then try again.';
@@ -102,42 +169,189 @@ function accountErrorMessage(err, signup, email) {
   return signup ? 'We couldn’t create your account. Please try again later.' : 'We couldn’t log you in. Please try again later.';
 }
 
+/* Form fields shared by the account pages. */
+const netIdField = (value = '') => `<div class="field"><label class="label" for="account-netid">BYU Net ID</label><div class="account-email"><input class="input" id="account-netid" name="netId" value="${esc(value)}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="80" aria-describedby="netid-help netid-error"><span>@byu.edu</span></div><p class="account-note" id="netid-help">Enter your Net ID (or your full @byu.edu email). We’ll add @byu.edu for you.</p><p class="field-error" id="netid-error" hidden></p></div>`;
+const passwordField = (label, autocomplete, help) => `<div class="field"><label class="label" for="account-password">${label}</label><div class="account-password"><input class="input" id="account-password" name="password" type="password" autocomplete="${autocomplete}" required ${autocomplete === 'new-password' ? 'minlength="8"' : ''} aria-describedby="password-help password-error"><button type="button" class="account-show" data-show-password="account-password" aria-controls="account-password" aria-pressed="false">Show</button></div><p class="account-note" id="password-help">${help}</p><p class="field-error" id="password-error" hidden></p></div>`;
+const confirmField = (label) => `<div class="field"><label class="label" for="account-confirm">${label}</label><input class="input" id="account-confirm" name="confirmPassword" type="password" autocomplete="new-password" required aria-describedby="confirm-error"><p class="field-error" id="confirm-error" hidden></p></div>`;
+const formMessage = '<p id="account-message" class="account-message" role="alert" tabindex="-1" hidden></p>';
+const successNote = (html) => `<p class="account-message account-success" role="status">${icon('check')}<span>${html}</span></p>`;
+
 const AccountPages = {
-  titles: { welcome: 'Welcome', signup: 'Create account', login: 'Log in' },
+  titles: { welcome: 'Welcome', signup: 'Create account', login: 'Log in', forgot: 'Reset password', 'reset-password': 'Set a new password' },
   isPublic(route) { return Object.hasOwn(this.titles, route); },
   render(route) {
     const intro = `<div class="account-intro"><span class="account-eyebrow">YOUR CAMPUS. YOUR STUDY SPOT.</span><h1>A little less searching.<br>A lot more studying.</h1><p>Find your quiet corner, your group’s next meeting place, or a seat near an outlet. Your next favorite spot is right here at BYU.</p><div class="account-perks"><span>${icon('pin')}Explore campus</span><span>${icon('filter')}Find your fit</span><span>${icon('star')}Save your favorites</span></div></div>`;
     let content;
     if (route === 'welcome') {
       content = `<span class="account-badge">${icon('map')}</span><h2 id="account-title">Find a place to focus.</h2><p class="account-sub">Log in or create an account to save your favorite study spots.</p><div class="account-actions"><a class="btn btn-primary btn-lg" href="#signup">Create an account</a><a class="btn btn-ghost btn-lg" href="#login">Log in</a></div><p class="account-note">Made for the way you study at BYU.</p>`;
+    } else if (route === 'forgot') {
+      content = this.forgot();
+    } else if (route === 'reset-password') {
+      content = this.resetPassword();
     } else {
       const signup = route === 'signup';
       const created = signup ? '' : this.createdMessage();
-      const netIdValue = !signup && AccountSession.justCreated ? esc(AccountSession.justCreated.netId) : '';
+      const netIdValue = !signup && AccountSession.justCreated ? AccountSession.justCreated.netId : '';
       content = `<a class="account-back" href="#welcome">${icon('back')}Back</a><h2 id="account-title">${signup ? 'Make yourself at home.' : 'Welcome back.'}</h2><p class="account-sub">${signup ? 'Create your account with your BYU Net ID.' : 'Log in with your BYU account to find your next spot.'}</p>
         ${created}
         <form id="${signup ? 'signup' : 'login'}-form" novalidate>
           ${signup ? `<div class="field"><label class="label" for="account-name">Your name</label><input class="input" id="account-name" name="displayName" autocomplete="name" required maxlength="60" aria-describedby="name-help name-error"><p class="account-note" id="name-help">This is what we’ll show in the top corner.</p><p class="field-error" id="name-error" hidden></p></div>` : ''}
-          <div class="field"><label class="label" for="account-netid">BYU Net ID</label><div class="account-email"><input class="input" id="account-netid" name="netId" value="${netIdValue}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="80" aria-describedby="netid-help netid-error"><span>@byu.edu</span></div><p class="account-note" id="netid-help">Enter your Net ID (or your full @byu.edu email). We’ll add @byu.edu for you.</p><p class="field-error" id="netid-error" hidden></p></div>
-          <div class="field"><label class="label" for="account-password">Password</label><div class="account-password"><input class="input" id="account-password" name="password" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" required ${signup ? 'minlength="8"' : ''} aria-describedby="password-help password-error"><button type="button" class="account-show" data-show-password="account-password" aria-controls="account-password" aria-pressed="false">Show</button></div><p class="account-note" id="password-help">${signup ? 'Use at least 8 characters.' : 'Enter your account password.'}</p><p class="field-error" id="password-error" hidden></p></div>
-          ${signup ? `<div class="field"><label class="label" for="account-confirm">Confirm password</label><input class="input" id="account-confirm" name="confirmPassword" type="password" autocomplete="new-password" required aria-describedby="confirm-error"><p class="field-error" id="confirm-error" hidden></p></div>` : ''}
-          <p id="account-message" class="account-message" role="alert" tabindex="-1" hidden></p>
+          ${netIdField(netIdValue)}
+          ${passwordField('Password', signup ? 'new-password' : 'current-password', signup ? 'Use at least 8 characters.' : 'Enter your account password.')}
+          ${signup ? confirmField('Confirm password') : '<p class="account-forgot"><a href="#forgot">Forgot password?</a></p>'}
+          ${formMessage}
           <button class="btn btn-primary btn-lg account-submit" type="submit">${signup ? 'Create account' : 'Log in'}</button>
         </form><p class="account-switch">${signup ? 'Already have an account? <a href="#login">Log in</a>' : 'New here? <a href="#signup">Create an account</a>'}</p>`;
     }
     return `<section class="account-layout">${intro}<div class="account-card" aria-labelledby="account-title">${content}</div></section>`;
   },
 
-  /** Green "Account created" note shown on the Log in page after sign-up. */
+  /** #forgot: ask for a reset email, then say (without revealing whether the account exists) that it's on the way. */
+  forgot() {
+    const head = `<a class="account-back" href="#login">${icon('back')}Back to log in</a><h2 id="account-title">Reset your password.</h2>`;
+    const sentTo = AccountSession.resetSentTo;
+    if (sentTo) {
+      return `${head}
+        ${successNote(`If there’s an account for <strong>${esc(sentTo)}</strong>, we’ve emailed it a link to choose a new password.`)}
+        <p class="account-sub">It can take a few minutes to arrive, so check your spam folder too. The link works once and expires after an hour.</p>
+        <a class="btn btn-primary btn-lg account-submit" href="#login">Back to log in</a>
+        <p class="account-switch">Didn’t get it? Wait a minute, then <button type="button" class="link-btn" data-reset-again>send another link</button>.</p>`;
+    }
+    const problem = AccountSession.linkProblem
+      ? '<p class="account-message" role="alert">That reset link has expired or was already used. Request a new one below.</p>' : '';
+    return `${head}<p class="account-sub">Enter your BYU Net ID and we’ll email you a link to choose a new password.</p>
+      ${problem}
+      <form id="forgot-form" novalidate>
+        ${netIdField()}
+        ${formMessage}
+        <button class="btn btn-primary btn-lg account-submit" type="submit">Email me a reset link</button>
+      </form><p class="account-switch">Remembered it? <a href="#login">Log in</a></p>`;
+  },
+
+  /** #reset-password: choose a new password (only after opening a valid reset link). */
+  resetPassword() {
+    if (!AccountSession.recovering) {
+      return `<span class="account-badge">${icon('x')}</span><h2 id="account-title">This reset link isn’t valid anymore.</h2>
+        <p class="account-sub">Reset links work once and expire after an hour. Request a new one to choose a new password.</p>
+        <a class="btn btn-primary btn-lg account-submit" href="#forgot">Request a new link</a>
+        <p class="account-switch"><a href="#login">Back to log in</a></p>`;
+    }
+    return `<h2 id="account-title">Choose a new password.</h2><p class="account-sub">You’ll use it the next time you log in.</p>
+      <form id="reset-form" novalidate>
+        ${passwordField('New password', 'new-password', 'Use at least 8 characters.')}
+        ${confirmField('Confirm new password')}
+        ${formMessage}
+        <button class="btn btn-primary btn-lg account-submit" type="submit">Save new password</button>
+      </form>`;
+  },
+
+  /** Green note on the Log in page after sign-up or a password reset. */
   createdMessage() {
+    if (AccountSession.justReset) return successNote('<strong>Password updated!</strong> Log in with your new password.');
     const c = AccountSession.justCreated;
     if (!c) return '';
     const text = c.needsEmailConfirm
       ? `<strong>Account created!</strong> We sent a confirmation link to <strong>${esc(c.netId)}@byu.edu</strong>. Click it, then log in here.`
       : '<strong>Account created!</strong> Log in to get started.';
-    return `<p class="account-message account-success" role="status">${icon('check')}<span>${text}</span></p>`;
+    return successNote(text);
   },
 };
+
+document.addEventListener('click', (event) => {
+  if (event.target.closest('[data-reset-again]')) {
+    AccountSession.resetSentTo = null;
+    App.route();
+    const input = $('#account-netid'); if (input) input.focus();
+  }
+});
+
+/** Show or clear the message under one field. Returns true when there's an error. */
+function setFieldError(input, errorId, message) {
+  const error = document.getElementById(errorId);
+  error.textContent = message;
+  error.hidden = !message;
+  input.setAttribute('aria-invalid', String(!!message));
+  return !!message;
+}
+
+/** Disable the submit button while a request runs; returns a function that undoes it. */
+function startPending(form, busyLabel) {
+  form.dataset.pending = 'true';
+  const submit = form.querySelector('[type="submit"]');
+  const label = submit.textContent;
+  submit.disabled = true;
+  submit.textContent = busyLabel;
+  return () => { delete form.dataset.pending; submit.disabled = false; submit.textContent = label; };
+}
+function showFormMessage(form, text) {
+  const message = form.querySelector('#account-message');
+  if (!form.isConnected || !message) return;
+  message.textContent = text;
+  message.hidden = false;
+  message.focus();
+}
+
+/* Request a reset email (#forgot). */
+document.addEventListener('submit', async (event) => {
+  const form = event.target;
+  if (form.id !== 'forgot-form') return;
+  event.preventDefault();
+  if (form.dataset.pending) return;
+  const netInput = form.elements.netId;
+  const parsed = parseByuEmail(netInput.value);
+  form.querySelector('#account-message').hidden = true;
+  if (setFieldError(netInput, 'netid-error', parsed.error || '')) { netInput.focus(); return; }
+  netInput.value = parsed.netId;
+  const done = startPending(form, 'Sending…');
+  try {
+    await AccountAPI.requestReset(parsed.email);
+  } catch (err) {
+    // Only a lost connection (or a missing setup) is shown as an error. Anything Supabase
+    // says about this address (rate limits, sending problems) would hint whether it has an
+    // account, so those get the same "if there's an account…" answer as success.
+    console.error('Password reset request failed', err && (err.code || err.message));
+    if (isNetworkError(err) || (err && err.friendly)) {
+      done();
+      showFormMessage(form, err.friendly ? err.message : 'We couldn’t reach the server. Check your internet connection and try again.');
+      return;
+    }
+  }
+  done();
+  AccountSession.linkProblem = false;
+  AccountSession.resetSentTo = parsed.email;
+  if (form.isConnected) { App.route(); const t = $('#account-title'); if (t) { t.setAttribute('tabindex', '-1'); t.focus(); } }
+});
+
+/* Save a new password (#reset-password). */
+document.addEventListener('submit', async (event) => {
+  const form = event.target;
+  if (form.id !== 'reset-form') return;
+  event.preventDefault();
+  if (form.dataset.pending) return;
+  const password = form.elements.password.value;
+  const confirm = form.elements.confirmPassword.value;
+  form.querySelector('#account-message').hidden = true;
+  const bad = [
+    setFieldError(form.elements.password, 'password-error', password.length >= 8 ? '' : 'Use a password with at least 8 characters.') && form.elements.password,
+    setFieldError(form.elements.confirmPassword, 'confirm-error', confirm && confirm === password ? '' : 'Enter the same password again to confirm it.') && form.elements.confirmPassword,
+  ].filter(Boolean);
+  if (bad.length) { bad[0].focus(); return; }
+  const done = startPending(form, 'Saving…');
+  try {
+    await AccountAPI.saveNewPassword(password);
+    AccountSession.setRecovering(false);
+    AccountSession.justReset = true;
+    AccountSession.justCreated = null;
+    App.go('login');
+  } catch (err) {
+    console.error('Saving new password failed', err && (err.code || err.message));
+    showFormMessage(form, resetErrorMessage(err));
+  } finally {
+    form.elements.password.value = '';
+    form.elements.confirmPassword.value = '';
+    done();
+  }
+});
 
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-show-password]');
@@ -192,6 +406,7 @@ document.addEventListener('submit', async (event) => {
     } else {
       const me = await AccountAPI.logIn({ email, password });
       AccountSession.justCreated = null;
+      AccountSession.justReset = false;
       App.go('start');
       toast(me ? `Welcome, ${me.display_name}!` : 'You are logged in.');
     }

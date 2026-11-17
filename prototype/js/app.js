@@ -29,10 +29,13 @@ const App = {
   route() {
     // Account pages (#welcome, #login, #signup) are optional; the rest of the site works without signing in.
     let h = location.hash.slice(1) || 'start';
-    // Coming back from a Supabase email link (#access_token=… or #error=…): Supabase reads it, we show Get Started.
+    // Coming back from a Supabase email link (#access_token=… or #error=…). Supabase must read
+    // the link before the address changes, so AccountSession waits for it and then picks the page.
+    if (DB.authLink && !AccountSession.authLinkHandled) { AccountSession.handleAuthLink(); return; }
     if (/(^|&)(access_token|error)=/.test(h)) { h = 'start'; history.replaceState(null, '', '#start'); }
     // Already logged in: skip the Welcome / Log in / Create account pages.
-    if (AccountPages.isPublic(h) && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
+    // (#reset-password stays: opening a reset link logs the person in so they can set a new password.)
+    if (AccountPages.isPublic(h) && h !== 'reset-password' && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
     // #add-<building>: open Add a Spot with that building already chosen.
     if (h.startsWith('add-')) {
       const [buildingId, requestedFloor] = h.slice(4).split('-f');

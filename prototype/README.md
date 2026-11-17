@@ -128,16 +128,47 @@ Visitors land on `#start` and can use the whole site without logging in. The
   Logged-in users who open `#welcome`, `#login` or `#signup` are sent to Get Started.
 - Passwords go straight to Supabase and are never stored or logged by the site.
 
+### Forgot password
+
+- **Log in → Forgot password?** opens `#forgot`. The student enters their Net ID and
+  `DB.requestPasswordReset()` calls Supabase's `resetPasswordForEmail`, which emails a
+  one-time link (valid for 1 hour by default).
+- The page always answers "If there's an account for …, we've emailed it a link", so it
+  never shows whether an address has an account. Supabase errors that only happen for
+  real accounts (rate limits, sending problems) get the same answer; only a lost
+  connection is shown as an error. The raw error goes to the browser console.
+- The link returns to this page with `#access_token=…&type=recovery`. `db.js` notes the
+  link type as soon as it loads, and the router waits (`AccountSession.handleAuthLink`)
+  until supabase-js has read the token before changing the address. (Before this the
+  router replaced the address right away and Supabase never saw the token.) A valid link
+  logs the student in and opens `#reset-password`; an expired or used one opens `#forgot`
+  with an explanation.
+- `#reset-password` asks for the new password twice (8+ characters), saves it with
+  `DB.updatePassword()`, logs out, and opens Log in with "Password updated". It only
+  works right after opening a reset link in that tab.
+- **Supabase settings this needs:**
+  - Authentication → URL Configuration: set **Site URL** to the live site, and add every
+    address the site runs from (the live site and `http://127.0.0.1:8000` for testing) to
+    **Redirect URLs**. A link to an address not on the list goes to the Site URL instead.
+  - Turning off "Confirm email" for sign-up does not turn off reset emails; they still
+    use Supabase's email sending.
+  - Supabase's built-in email sending is for testing: it only delivers to the email
+    addresses of members of the Supabase project's team, and only a few emails per hour
+    (Authentication → Rate Limits). For every student to get reset emails, set up custom
+    SMTP (Authentication → Emails → SMTP Settings). No code change is needed.
+
 ### Browser checks
 
 With the prototype server running on port 8000, run
-`python3 prototype/tests/account_flow.py`, `python3 prototype/tests/ui_flow.py` and
-`python3 prototype/tests/recommend_flow.py`
+`python3 prototype/tests/account_flow.py`, `python3 prototype/tests/ui_flow.py`,
+`python3 prototype/tests/recommend_flow.py` and
+`python3 prototype/tests/password_reset_flow.py`
 from the repository root. This requires
 Python Playwright and Chromium (`CHROMIUM_PATH` can override `/usr/bin/chromium`;
 `TEST_BASE_URL` can override the local server URL; `CONFIRM=1` simulates email
-confirmation being on). The checks replace `js/db.js` with an in-memory fake and
-block external requests, so no real accounts or favorites are changed.
+confirmation being on). The checks replace `js/db.js` with an in-memory fake (the
+password reset check instead answers every Supabase request with a fake) and
+block external requests, so no real accounts or favorites are changed and no email is sent.
 
 ## Campus overview map
 
