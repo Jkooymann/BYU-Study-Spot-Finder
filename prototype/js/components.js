@@ -83,7 +83,7 @@ function renderTopBar(pageKey) {
         <span class="brand-name"><span class="brand-byu">BYU</span> Study Spot Finder</span>
       </a>
       <nav class="main-nav" aria-label="Main">
-        ${link('map', 'Map', 'map')}${link('list', 'List', 'list')}${link('favorites', 'Favorites', 'star')}
+        ${link('start', 'Home', 'home')}${link('map', 'Map', 'map')}${link('list', 'List', 'list')}${link('favorites', 'Favorites', 'star')}
       </nav>
       <div class="topbar-right">
         ${accountControl(pageKey)}
