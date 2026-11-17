@@ -15,12 +15,21 @@ with sync_playwright() as p:
  page.wait_for_selector('.campus-map')
  assert page.locator('.campus-map [data-building]').count()==page.evaluate('BUILDINGS.length')
  assert page.locator('.bldg-shape:not(path)').count()==0
+ assert page.locator('.bldg.is-empty').count()==0
+ assert page.locator('.building-grid').count()==0
+ assert 'scale(0.8)' in page.locator('.map-compass').get_attribute('transform')
+ assert page.locator('.bldg-shape').evaluate_all('(nodes)=>new Set(nodes.map(n=>getComputedStyle(n).fill)).size')==1
+ labels=page.locator('.bldg-short').evaluate_all('(nodes)=>nodes.map(n=>[n.textContent,n.getAttribute("x"),n.getAttribute("y"),n.style.fontSize])')
+ page.locator('[data-map-layer="outdoors"]').click()
+ assert page.locator('.campus-context .bldg-short').evaluate_all('(nodes)=>nodes.map(n=>[n.textContent,n.getAttribute("x"),n.getAttribute("y"),n.style.fontSize])')==labels
+ assert page.locator('.spot-list, a[href="#add-outdoors"]').count()==0
+ page.locator('[data-map-layer="buildings"]').click()
  page.set_viewport_size({'width':390,'height':844});page.reload(wait_until='networkidle')
  assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
  assert page.locator('.map-wrap').evaluate('(e)=>e.scrollLeft')>0
  page.set_viewport_size({'width':1440,'height':1100})
  page.locator('.campus-map [data-building="hbll"]').click()
- page.wait_for_url('**/#building-hbll')
+ page.wait_for_url('**/#building-hbll');page.wait_for_selector('.floor-tabs')
  assert page.locator('#app h1').inner_text()=='Harold B. Lee Library'
  page.evaluate("App.go('map')");page.wait_for_selector('.campus-map')
  page.locator('.campus-map [data-building="wsc"]').focus();page.keyboard.press('Enter')

@@ -12,7 +12,7 @@ with sync_playwright() as p:
     page.evaluate('localStorage.clear()'); page.reload()
     page.locator('[data-map-layer="outdoors"]').click()
     assert page.evaluate('Store.getFilters().setting') == 'outdoors'
-    page.locator('a[href="#add-outdoors"]').click()
+    page.goto(BASE + '/#add-outdoors')
     page.locator('#add-name').fill('Courtyard tables')
     assert page.locator('[data-add-floor]').count() == 0
     page.locator('#add-form [type="submit"]').click()
@@ -48,6 +48,7 @@ with sync_playwright() as p:
     page.locator('.spot-card [data-fav]').click()
     page.goto(BASE + '/#favorites'); page.wait_for_selector('.fav-item')
     assert 'Outdoors' in page.locator('.fav-item').inner_text()
+    assert page.locator('.badge-mine').count() == 0
     page.locator('.fav-name').click(); page.wait_for_selector('#spot-dialog:not([hidden])')
     assert 'Floor null' not in page.locator('#spot-dialog').inner_text()
     assert page.locator('#spot-dialog a[href^="#building-"]').count() == 0
@@ -69,9 +70,10 @@ with sync_playwright() as p:
     }""")
     page.wait_for_selector('.outdoor-marker')
     assert page.locator('.outdoor-marker').count() == 1
-    assert 'Legacy outside' in page.locator('#app').inner_text()
+    assert page.evaluate("Store.filtered().some(s => s.name === 'Legacy outside')")
     assert 'Campus pin needed' in page.locator('#app').inner_text()
-    assert page.locator('.spot-card').count() == 2
+    assert page.locator('.spot-card').count() == 0
+    assert page.locator('a[href="#add-outdoors"]').count() == 0
     page.locator('[data-map-layer="buildings"]').click()
     assert page.evaluate('Store.getFilters()') == {'features':page.evaluate('Store.getFilters().features'),'setting':'','building':'hbll','groupSize':'solo'}
     assert page.evaluate('Store.getFilters().features.wifi')

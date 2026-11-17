@@ -15,7 +15,7 @@ function mapLayerSwitch(outdoor) {
   </div>`;
 }
 function campusLocationSvg(pin = null, spots = [], selectedId = null, picker = false) {
-  const buildings = BUILDINGS.map(b => { const m = CAMPUS_FOOTPRINTS[b.id]; return `<g class="campus-context"><path class="bldg-shape" d="${m.d}" fill-rule="evenodd"/><text class="bldg-short" x="${m.label[0]}" y="${m.label[1]}" text-anchor="middle">${b.short}</text></g>`; }).join('');
+  const buildings = BUILDINGS.map(b => { const m = CAMPUS_FOOTPRINTS[b.id]; return `<g class="campus-context"><path class="bldg-shape" d="${m.d}" fill-rule="evenodd"/><text class="bldg-short" x="${m.label[0]}" y="${m.label[1] + (m.font || 14) * 0.35}" text-anchor="middle" style="font-size:${m.font || 14}px">${b.short}</text></g>`; }).join('');
   const markers = spots.filter(hasCampusPin).map((s, i) => `<g class="outdoor-marker${selectedId === s.id ? ' is-target' : ''}" transform="translate(${s.campusPosition.x * CAMPUS.w / 100} ${s.campusPosition.y * CAMPUS.h / 100})" data-open-spot="${s.id}" tabindex="0" role="button" aria-label="${esc(s.name)}"><circle r="15"/><text text-anchor="middle" dy="5">${i + 1}</text></g>`).join('');
   return `<svg class="campus-map" viewBox="0 0 ${CAMPUS.w} ${CAMPUS.h}" role="group" aria-label="${picker ? 'Place outdoor spot on campus' : 'Outdoor study spots on campus'}"><rect class="map-ground" width="${CAMPUS.w}" height="${CAMPUS.h}" rx="18"/>${campusBackdrop()}${buildings}${markers}${pin ? `<g class="outdoor-marker is-target" transform="translate(${pin.x * CAMPUS.w / 100} ${pin.y * CAMPUS.h / 100})"><circle r="15"/><text text-anchor="middle" dy="5">✓</text></g>` : ''}</svg>`;
 }
@@ -206,12 +206,7 @@ function favButton(id, withLabel = false) {
   const on = Store.isFav(id);
   return `<button type="button" class="fav-btn${on ? ' is-on' : ''}${withLabel ? ' fav-btn-label' : ''}" data-fav="${id}" aria-pressed="${on}" aria-label="${on ? 'Remove from favorites' : 'Add to favorites'}">${icon('star')}${withLabel ? `<span>${on ? 'Favorited' : 'Favorite'}</span>` : ''}</button>`;
 }
-function spotBadge(s) {
-  if (!s.isUserSpot) return '';
-  const me = Store.currentStudent();
-  if (s.submittedBy == null || (me && me.user_id === s.submittedBy)) return '<span class="badge-mine">My spot</span>';
-  return `<span class="badge-mine">Added by ${esc(s.submittedByName || 'a teammate')}</span>`;
-}
+
 function spotCard(s, opts = {}) {
   const b = buildingById(s.building) || { short: s.building };
   const feats = FEATURES.filter((f) => s.features[f.key]);
@@ -220,7 +215,6 @@ function spotCard(s, opts = {}) {
     <div class="spot-card-main">
       <div class="spot-card-title">
         <h3>${esc(s.name)}</h3>
-        ${spotBadge(s)}
       </div>
       <p class="spot-meta">${esc(spotLocation(s, true))}</p>
       <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}</div>
@@ -502,7 +496,7 @@ const SpotDialog = {
         <div class="sd-title">
           <p class="eyebrow eyebrow-gold">${esc(s.features.outdoors ? 'Outdoors' : b.name)}</p>
           <h2 id="sd-title">${esc(s.name)}</h2>
-          <p class="spot-meta">${esc(spotLocation(s, true))}${s.isUserSpot ? ' ' + spotBadge(s) : ''}</p>
+          <p class="spot-meta">${esc(spotLocation(s, true))}</p>
         </div>
         <div class="sd-actions">
           ${favButton(s.id, true)}

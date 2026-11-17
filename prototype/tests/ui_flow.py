@@ -101,7 +101,7 @@ with sync_playwright() as p:
     # Map: every building on the map and in the directory; Show on map opens a card, not a pop-up.
     page.goto(BASE_URL + '/#map'); page.wait_for_selector('.campus-map')
     n = page.evaluate('BUILDINGS.length')
-    assert page.locator('.bldg').count() == n and page.locator('.building-card').count() == n and n >= 17
+    assert page.locator('.bldg').count() == n and page.locator('.building-card').count() == 0 and n >= 17
     page.goto(BASE_URL + '/#spot-s4'); page.wait_for_selector('#spot-dialog:not([hidden])')
     page.click('text=Show on map'); page.wait_for_selector('#map-selected')
     assert page.locator('#spot-dialog').is_hidden()
