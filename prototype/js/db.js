@@ -55,9 +55,9 @@ const DB = (() => {
   // student_user!submitted_by_user_id names which link to follow: study_spot and
   // student_user are also linked through favorite_spot and spot_rating, and a
   // plain student_user(...) makes Supabase refuse with "more than one relationship".
-  const SPOT_COLUMNS = 'study_spot_id, building_id, submitted_by_user_id, spot_name, floor_number, description, '
-    + 'is_indoors, max_group_size, typical_busyness_level, floor_plan_x_percent, floor_plan_y_percent, '
-    + 'study_spot_amenity(amenity_id), submitter:student_user!submitted_by_user_id(display_name)';
+  // Selecting table columns via * keeps indoor reads working before the outdoor
+  // migration is deployed; the new coordinates are optional on older rows.
+  const SPOT_COLUMNS = '*, study_spot_amenity(amenity_id), submitter:student_user!submitted_by_user_id(display_name)';
 
   /** Turn a study_spot row into the spot shape the site uses (see data.js). */
   function toSpot(row) {
@@ -73,8 +73,9 @@ const DB = (() => {
       name: row.spot_name,
       building: b ? b.id : '',
       floor: floorFromDatabase(row.floor_number),
+      campusPosition: row.campus_map_x_percent != null && row.campus_map_y_percent != null ? { x: Number(row.campus_map_x_percent), y: Number(row.campus_map_y_percent) } : null,
       room: '',
-      position: { x: Number(row.floor_plan_x_percent), y: Number(row.floor_plan_y_percent) },
+      position: row.campus_map_x_percent != null ? null : { x: Number(row.floor_plan_x_percent), y: Number(row.floor_plan_y_percent) },
       features,
       groupSize: max <= 1 ? 'solo' : max <= 4 ? 'small group' : 'big group',
       busyness: BUSY_FROM_DB[row.typical_busyness_level] || 'Moderate',
@@ -102,23 +103,30 @@ const DB = (() => {
   /** Save a new spot for this student. Returns the saved spot. */
   async function addSpot(userId, spot) {
     const f = spot.features;
+    if (f.outdoors && (!spot.campusPosition || ![spot.campusPosition.x, spot.campusPosition.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100))) {
+      throw new Error('Place an outdoor pin on the campus map before saving.');
+    }
     const building = buildingById(spot.building);
-    if (!building || building.dbId == null) {
+    if ((!f.outdoors || spot.building) && (!building || building.dbId == null)) {
       throw new Error(`${building ? building.short : 'This building'} isn't in the database yet. Ask the project owner to apply the latest building migrations in Supabase, then reload.`);
     }
     const noise = f.quietZone && !f.talkingAllowed ? 'Quiet' : f.talkingAllowed && !f.quietZone ? 'Moderate' : null;
     const { data, error } = await client.from('study_spot').insert({
-      building_id: building.dbId,
+      building_id: building ? building.dbId : null,
       submitted_by_user_id: userId,
       spot_name: spot.name,
-      floor_number: floorToDatabase(spot.floor),
+      floor_number: f.outdoors ? null : floorToDatabase(spot.floor),
       description: spot.description || null,
       is_indoors: !f.outdoors,
       max_group_size: GROUP_TO_MAX[spot.groupSize] || 1,
       noise_level: noise,
       typical_busyness_level: BUSY_TO_DB[spot.busyness] || 'Moderate',
-      floor_plan_x_percent: Math.round(spot.position.x * 100) / 100,
-      floor_plan_y_percent: Math.round(spot.position.y * 100) / 100,
+      floor_plan_x_percent: f.outdoors ? null : Math.round(spot.position.x * 100) / 100,
+      floor_plan_y_percent: f.outdoors ? null : Math.round(spot.position.y * 100) / 100,
+      ...(f.outdoors ? {
+        campus_map_x_percent: Math.round(spot.campusPosition.x * 100) / 100,
+        campus_map_y_percent: Math.round(spot.campusPosition.y * 100) / 100,
+      } : {}),
       is_sample_spot: false,
     }).select('study_spot_id').single();
     if (error) throw error;
