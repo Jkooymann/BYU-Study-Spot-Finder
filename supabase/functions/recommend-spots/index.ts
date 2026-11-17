@@ -26,14 +26,10 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 const PROMPT_VERSION = 1;               // bump to ignore old cached answers
 const MIN_PICKS = 3;
 const MAX_PICKS = 5;
-const MAX_CANDIDATES = 60;              // spots sent to Gemini at most (smaller prompt = faster answer)
+const MAX_CANDIDATES = 120;             // spots sent to Gemini at most
 const CACHE_DAYS = 7;
 const KEEP_ROWS_DAYS = 30;
-// Speed: the page tells students this "can take up to 20 seconds", so all Gemini
-// attempts together get at most GEMINI_BUDGET_MS, and the first model gets less
-// so there is still time to fall back to the second one.
-const GEMINI_BUDGET_MS = 18_000;
-const FIRST_MODEL_TIMEOUT_MS = 9_000;
+const GEMINI_TIMEOUT_MS = 25_000;
 const intEnv = (name: string, fallback: number) => {
   const n = Number(Deno.env.get(name));
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
@@ -41,10 +37,9 @@ const intEnv = (name: string, fallback: number) => {
 const USER_HOURLY_LIMIT = intEnv('AI_USER_HOURLY_LIMIT', 8);
 const USER_DAILY_LIMIT = intEnv('AI_USER_DAILY_LIMIT', 25);
 const SITE_DAILY_LIMIT = intEnv('AI_SITE_DAILY_LIMIT', 200);
-// Flash-Lite first: it is Google's fastest model and plenty for ranking a few
-// dozen spots (it answered every successful request so far). Flash is the
-// fallback, with its own free-tier quota. "-latest" follows Google's newest release.
-const MODELS = [Deno.env.get('GEMINI_MODEL'), 'gemini-flash-lite-latest', 'gemini-flash-latest']
+// A current fast Flash model first ("-latest" follows Google's newest release),
+// then the lighter Flash-Lite, which has its own free-tier quota.
+const MODELS = [Deno.env.get('GEMINI_MODEL'), 'gemini-flash-latest', 'gemini-flash-lite-latest']
   .filter((m, i, all): m is string => !!m && all.indexOf(m) === i);
 
 const CORS = {
@@ -171,7 +166,7 @@ async function askGemini(favs: Spot[], candidates: Spot[], key: string): Promise
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.4,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
       responseMimeType: 'application/json',
       responseSchema: {
         type: 'OBJECT',
@@ -190,17 +185,17 @@ async function askGemini(favs: Spot[], candidates: Spot[], key: string): Promise
     },
   };
 
-  const started = Date.now();
   let last: GeminiError = new GeminiError('No Gemini model configured');
-  for (let i = 0; i < MODELS.length; i++) {
-    const model = MODELS[i];
-    const left = GEMINI_BUDGET_MS - (Date.now() - started);
-    if (left < 1_500) break;              // not enough time for another try
-    const isLast = i === MODELS.length - 1;
+  for (const model of MODELS) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), isLast ? left : Math.min(left, FIRST_MODEL_TIMEOUT_MS));
+    const timer = setTimeout(() => ctrl.abort(), GEMINI_TIMEOUT_MS);
     try {
-      const res = await callModel(model, body, key, ctrl.signal);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
       const text = await res.text();
       if (!res.ok) {
         // 429 = this model's quota is used up; 404 = model name retired. Either way try the next model.
@@ -212,7 +207,6 @@ async function askGemini(favs: Spot[], candidates: Spot[], key: string): Promise
       const out = (data.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('');
       const parsed = JSON.parse(out.replace(/^```(?:json)?\s*|\s*```$/g, ''));
       const picks = Array.isArray(parsed?.recommendations) ? parsed.recommendations : [];
-      console.log(`Gemini ${model} answered in ${Date.now() - started} ms`);
       return { picks, model };
     } catch (e) {
       if (e instanceof GeminiError) throw e;
@@ -222,35 +216,6 @@ async function askGemini(favs: Spot[], candidates: Spot[], key: string): Promise
     }
   }
   throw last;
-}
-
-/* Thinking makes newer Gemini models much slower and is not needed to rank a
-   short list, so ask for as little as each model allows. Gemini 3+ takes
-   thinkingLevel, 2.5 takes thinkingBudget; a model that rejects one (HTTP 400
-   mentioning "thinking") gets the next. What worked is remembered per model
-   while the function stays warm. */
-const THINKING_OPTIONS: (Record<string, unknown> | null)[] = [{ thinkingLevel: 'minimal' }, { thinkingBudget: 0 }, null];
-const thinkingFor = new Map<string, number>();
-
-// deno-lint-ignore no-explicit-any
-async function callModel(model: string, body: any, key: string, signal: AbortSignal): Promise<Response> {
-  for (let t = thinkingFor.get(model) ?? 0; t < THINKING_OPTIONS.length; t++) {
-    const thinking = THINKING_OPTIONS[t];
-    const generationConfig = thinking ? { ...body.generationConfig, thinkingConfig: thinking } : body.generationConfig;
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({ ...body, generationConfig }),
-      signal,
-    });
-    if (res.status === 400 && thinking && t < THINKING_OPTIONS.length - 1) {
-      const text = await res.clone().text();
-      if (/think/i.test(text)) continue;
-    }
-    thinkingFor.set(model, t);
-    return res;
-  }
-  throw new Error('unreachable');
 }
 
 /** Keep only real candidate ids, no repeats, at most MAX_PICKS; top up from the closest matches if Gemini gave too few. */

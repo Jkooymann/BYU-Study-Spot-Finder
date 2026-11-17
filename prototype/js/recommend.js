@@ -137,7 +137,7 @@ const Recommend = {
       case 'loading':
         return `<p class="ai-msg ai-loading"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span>Finding spots like your ${plural(this.favCount, 'favorite')}…</p>
           <div class="ai-progress" aria-hidden="true"><span></span></div>
-          <p class="ai-note">This can take up to 20 seconds.</p>`;
+          <p class="ai-note">This could take up to 30 seconds…</p>`;
       case 'no_candidates':
         return msg('You’ve already saved every spot I know about, so there’s nothing new to suggest right now. Check back when more spots are added!');
       case 'rate_limited':

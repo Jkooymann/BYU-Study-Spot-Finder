@@ -64,15 +64,15 @@ opens that spot's details.
 
 - **Where the AI runs.** `supabase/functions/recommend-spots/index.ts`, a Supabase
   Edge Function, calls Google Gemini (free tier) with the `GEMINI_API_KEY` secret. The
-  browser never sees the key. Default model: `gemini-flash-lite-latest` (the fastest), falling back to
-  `gemini-flash-latest` if the first is busy, out of quota or slow. Set a `GEMINI_MODEL` secret to
+  browser never sees the key. Default model: `gemini-flash-latest`, falling back to
+  `gemini-flash-lite-latest` if the first is out of quota. Set a `GEMINI_MODEL` secret to
   pin a specific model.
 - **Works while spots change.** On every request the function reads the student's
   favorites and every spot (name, building, floor, indoors, noise, busyness, group size,
   tags, description) live from the database. Nothing about spots is hard-coded. Gemini
   may only pick from the spot ids it is sent, and every id it returns is checked before
   it reaches the page; the page then skips any spot it can't show. With lots of spots,
-  the 60 closest matches to the favorites are sent.
+  the 120 closest matches to the favorites are sent.
 - **No favorites** (or only favorites of deleted spots): the panel asks the student to
   save some first and the AI is not called. Logged-out visitors are asked to log in.
 - **Free-tier protection.** Answers are cached in the `ai_recommendation` table: the same

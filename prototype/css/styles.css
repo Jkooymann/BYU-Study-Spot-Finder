@@ -661,10 +661,10 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .ai-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: glow 1s infinite; }
 .ai-dots i:nth-child(2) { animation-delay: .15s; }
 .ai-dots i:nth-child(3) { animation-delay: .3s; }
-/* Fills to ~90% over the expected wait (the server gives up after ~20s). */
+/* Fills to ~90% over the expected wait (each AI try times out after 25s). */
 .ai-progress { height: 4px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .ai-progress span { display: block; height: 100%; width: 90%; border-radius: inherit; background: var(--accent);
-  transform-origin: left; animation: ai-progress 18s cubic-bezier(.15,.6,.35,1) forwards; }
+  transform-origin: left; animation: ai-progress 25s cubic-bezier(.15,.6,.35,1) forwards; }
 @keyframes ai-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .ai-progress { display: none; } }
 

@@ -76,7 +76,7 @@ with sync_playwright() as p:
     page.click('.spot-card[data-open-spot="s3"] [data-fav]'); page.wait_for_timeout(100)
     page.click('#ai-fab')
     page.wait_for_selector('#ai-panel .ai-loading')
-    assert 'up to 20 seconds' in page.locator('#ai-panel').inner_text()
+    assert 'up to 30 seconds' in page.locator('#ai-panel').inner_text()
     assert page.locator('#ai-panel .ai-progress').count() == 1
     page.wait_for_selector('#ai-panel .ai-item')
     items = page.locator('#ai-panel .ai-item')
