@@ -26,6 +26,10 @@ function getTrackingUserId() {
 const SessionTracker = (() => {
   const SESSION_KEY = 'byuStudySpots.okrSession';
   const HEARTBEAT_MS = 30 * 1000;
+  // A reload takes seconds. If the saved session was last heard from longer ago
+  // than this, the browser was closed and reopened (some browsers restore tabs
+  // with their sessionStorage), so a new session starts instead.
+  const RELOAD_GAP_MS = 2 * 60 * 1000;
   let session = null; // { id, userId }
   let timer = null;
   let listening = false;
@@ -43,7 +47,7 @@ const SessionTracker = (() => {
 
   async function begin(userId) {
     const id = await OKRApi.startSession();
-    session = id ? { id, userId } : null;
+    session = id ? { id, userId, lastBeat: Date.now() } : null;
     save(session);
   }
 
@@ -52,6 +56,8 @@ const SessionTracker = (() => {
   async function beat(opts) {
     if (!session) return;
     try {
+      session.lastBeat = Date.now();
+      save(session);
       const ok = await OKRApi.heartbeat(session.id, opts);
       if (opts && opts.keepalive) return;
       if (ok === null) end();                         // logged out
@@ -83,7 +89,8 @@ const SessionTracker = (() => {
         if (!userId) { end(); return; }
         if (session && session.userId === userId) return; // already tracking this student
         const saved = load();
-        if (saved && saved.userId === userId) { session = saved; await beat(); } // reload in the same tab
+        const fresh = saved && saved.userId === userId && Date.now() - (saved.lastBeat || 0) < RELOAD_GAP_MS;
+        if (fresh) { session = saved; await beat(); } // reload in the same tab
         else await begin(userId);                                              // first load, or a new login
         listen();
         startTimer();

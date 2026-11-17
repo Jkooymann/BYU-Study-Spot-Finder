@@ -11,7 +11,7 @@ OKR 1: **80% of users spend less than 10 minutes in a single session, not counti
 | `supabase/migrations/20261116220000_okr1_session_tracking.sql` | `user_session` table (`user_id` → `student_user`), `okr_start_session()`, `okr_heartbeat()`, `okr1_stats()`, view `okr1_session_lengths`. |
 
 **Rules.** One session = one browser tab for one logged-in student, from opening the
-site (or logging in) until the tab closes (or they log out). Reloads keep the session.
+site (or logging in) until the tab closes (or they log out). Reloads keep the session; a tab the browser restores after being closed starts a new one.
 Logged-out visitors aren't tracked. Length = last heartbeat − start, both stamped by
 the database clock. The database finds the student from the login (`auth.uid()`), so
 nobody can record sessions for someone else. Each student's first session is left out,
