@@ -54,7 +54,7 @@ with sync_playwright() as p:
     page = b.new_page(); errors = []
     use_sample_spots(page)
     page.on('pageerror', lambda e: errors.append(str(e)))
-    page.route('**/js/db.js', lambda r: r.fulfill(content_type='application/javascript', body=FAKE_DB))
+    page.route('**/js/db.js*', lambda r: r.fulfill(content_type='application/javascript', body=FAKE_DB))
     page.route('https://**/*', lambda r: r.abort())
     page.goto(BASE_URL + '/#list')
     page.evaluate('localStorage.clear()'); page.reload()

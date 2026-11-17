@@ -28,7 +28,7 @@ Pages.start = () => {
   const matches = Store.filtered(startFilters()).length;
   const showLabel = sel.size ? `Show ${plural(matches, 'matching spot')}` : `Browse all ${plural(spots.length, 'spot')}`;
   return `<section class="page start">
-    ${pageHeader({ title: 'What do you want in your study spot?', display: true })}
+    ${pageHeader({ title: 'What do you want in your study spot?', sub: 'Pick what matters and we’ll find campus spots that have it.', display: true })}
     <div class="start-chips" role="group" aria-label="What you want in a study spot">
       ${START_CHIPS.map((c) => `<button type="button" class="chip chip-toggle chip-lg${sel.has(c.key) ? ' is-on' : ''}" aria-pressed="${sel.has(c.key)}" data-start-chip="${c.key}">
         ${icon(c.icon)}<span>${c.label}</span><span class="chip-check">${icon('check')}</span></button>`).join('')}
@@ -105,7 +105,7 @@ Pages.map = (spotId) => {
   }
 
   return `<section class="page">
-    ${pageHeader({ title: 'Campus map' })}
+    ${pageHeader({ title: 'Campus map', sub: 'Tap a building to see its floors and spots.' })}
     ${toolbar()}
     ${active && !anyMatch ? noResults() : ''}
     ${selected}
@@ -153,7 +153,7 @@ Pages.building = (buildingId, floorArg) => {
   const matchCount = items.filter((i) => i.match).length;
   const anyMatch = !active || spots.some((s) => Store.matches(s, f));
   return `<section class="page">
-    ${pageHeader({ back: `<a href="#map" class="back-link" data-back-map>${icon('back')}Back to map</a>`, title: esc(b.name) })}
+    ${pageHeader({ back: `<a href="#map" class="back-link" data-back-map>${icon('back')}Back to map</a>`, title: esc(b.name), sub: `${plural(spots.length, 'study spot')} on ${plural(floors.length, 'floor')}` })}
     <div class="floor-tabs" role="tablist" aria-label="Floors">
       ${floors.map((fl) => {
         const m = spots.filter((s) => s.floor === fl && (!active || Store.matches(s, f))).length;
@@ -201,7 +201,7 @@ Pages.list = () => {
     body = `<div class="spot-list">${sorted.map((s) => spotCard(s, { flash: s.id === flash })).join('')}</div>`;
   }
   return `<section class="page">
-    ${pageHeader({ title: 'Study spots' })}
+    ${pageHeader({ title: 'Study spots', sub: 'Every spot on campus, grouped by building.' })}
     ${toolbar()}
     <div class="results-bar">
       <p class="results-count" aria-live="polite">${spots.length === all.length ? `Showing all <strong>${plural(all.length, 'spot')}</strong>` : `<strong>${spots.length}</strong> of ${plural(all.length, 'spot')} match`}</p>
@@ -239,7 +239,7 @@ Pages.favorites = () => {
     : `<div class="empty"><span class="empty-ic">${icon('star')}</span><p class="empty-title">No favorites yet</p><p>Tap the ☆ on any spot to save it here.</p><div class="empty-actions"><a class="btn btn-primary" href="#list">Browse study spots</a></div></div>`;
 
   return `<section class="page">
-    ${pageHeader({ title: 'Favorites' })}
+    ${pageHeader({ title: 'Favorites', sub: 'Your go-to spots, one tap away.' })}
     ${notice(favoritesNote())}
     ${spotsPanel}
   </section>`;
@@ -281,7 +281,7 @@ Pages.add = () => {
   const b = buildingById(s.building);
   const existing = b && s.floor ? Store.allSpots().filter((x) => x.building === b.id && x.floor === s.floor) : [];
   return `<section class="page page-narrow">
-    ${pageHeader({ title: 'Add a spot' })}
+    ${pageHeader({ title: 'Add a spot', sub: 'Share a spot so other students can find it.' })}
     ${notice(addSpotNote())}
     <form id="add-form" class="form" novalidate>
       <div class="field">
