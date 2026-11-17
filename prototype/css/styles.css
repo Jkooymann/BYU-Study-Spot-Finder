@@ -688,8 +688,15 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .account-email:focus-within, .account-password:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 .account-show { background: transparent; border: 0; color: var(--primary); font-weight: 700; padding: 10px 14px; min-height: 44px; }
 .account-submit { width: 100%; margin-top: 8px; }
+.account-sub { margin: -12px 0 28px; color: var(--muted); }
+.account-badge { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--accent-soft); color: var(--accent-ink); margin-bottom: 24px; }
+.account-badge .ic { width: 28px; height: 28px; }
 .account-switch { margin-top: 24px; text-align: center; font-size: .9rem; color: var(--muted); }
 .account-switch a { font-weight: 700; }
+.account-switch .link-btn { padding: 0 2px; min-height: 0; font-size: inherit; }
+.account-forgot { margin-top: -10px; text-align: right; font-size: .9rem; }
+.account-forgot a { font-weight: 700; }
+.account-card h2 + .account-success { margin-top: 16px; }
 .account-message { padding: 12px; background: var(--primary-soft); border-radius: var(--r-sm); margin-bottom: 16px; }
 .account-success { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); color: var(--text); line-height: 1.5; }
 .account-success .ic { width: 20px; height: 20px; flex: none; margin-top: 2px; color: var(--accent-ink); }
@@ -740,3 +747,14 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* Exterior silhouettes used for the first floor-map pass. */
 .fp-outline { fill: var(--surface); stroke: var(--muted); stroke-width: 2; }
 .floorplan.is-interactive .fp-pin { pointer-events: none; }
+
+/* Outdoor campus layer and placement reuse the existing campus illustration. */
+.map-layer-switch { grid-template-columns: 1fr 1fr; max-width: 440px; margin-bottom: 20px; }
+.campus-context { pointer-events: none; }
+.campus-context .bldg-short { font-size: 13px; }
+.outdoor-marker { cursor: pointer; outline: none; }
+.outdoor-marker circle { fill: var(--primary); stroke: var(--surface); stroke-width: 3; }
+.outdoor-marker text { fill: var(--surface); font-weight: 800; font-size: 14px; pointer-events: none; }
+.outdoor-marker:hover circle, .outdoor-marker:focus-visible circle, .outdoor-marker.is-target circle { stroke: var(--accent); stroke-width: 5; }
+#add-campus-plan { cursor: crosshair; }
+#add-campus-plan:focus-visible { outline: 3px solid var(--accent); }

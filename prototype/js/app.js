@@ -32,15 +32,20 @@ const App = {
   route() {
     // Account pages (#welcome, #login, #signup) are optional; the rest of the site works without signing in.
     let h = location.hash.slice(1) || 'start';
-    // Coming back from a Supabase email link (#access_token=… or #error=…): Supabase reads it, we show Get Started.
+    // Coming back from a Supabase email link (#access_token=… or #error=…). Supabase must read
+    // the link before the address changes, so AccountSession waits for it and then picks the page.
+    if (DB.authLink && !AccountSession.authLinkHandled) { AccountSession.handleAuthLink(); return; }
     if (/(^|&)(access_token|error)=/.test(h)) { h = 'start'; history.replaceState(null, '', '#start'); }
     // Already logged in: skip the Welcome / Log in / Create account pages.
-    if (AccountPages.isPublic(h) && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
+    // (#reset-password stays: opening a reset link logs the person in so they can set a new password.)
+    if (AccountPages.isPublic(h) && h !== 'reset-password' && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
     // #add-<building>: open Add a Spot with that building already chosen.
+    if (h === 'add-outdoors') { AddState.reset(); AddState.setting = 'outdoors'; h = 'add'; history.replaceState(null, '', '#add'); }
     if (h.startsWith('add-')) {
       const [buildingId, requestedFloor] = h.slice(4).split('-f');
       const b = buildingById(buildingId);
       if (b) {
+        AddState.setting = 'indoors';
         const floor = b.floors.includes(parseFloor(requestedFloor)) ? parseFloor(requestedFloor) : b.floors[0];
         if (AddState.building !== b.id || requestedFloor) { AddState.building = b.id; AddState.floor = floor; AddState.pin = null; }
       }
@@ -57,6 +62,15 @@ const App = {
       return;
     }
     SpotDialog.close();
+    if (h.startsWith('map-spot-')) {
+      const target = Store.getSpot(h.slice(9));
+      if (target) {
+        const f = Store.getFilters();
+        if (target.features.outdoors) f.setting = 'outdoors';
+        else if (f.setting === 'outdoors') f.setting = '';
+        Store.setFilters(f);
+      }
+    }
     // How many history steps back the map is, so "Back to map" returns to it (and its scroll spot)
     // instead of stacking a new map page on top.
     const prev = this.base || '';
@@ -124,9 +138,8 @@ const App = {
     if (wrap && target.mapX != null) wrap.scrollLeft = target.mapX;
     else if (wrap && keepScroll && oldMapX != null) wrap.scrollLeft = oldMapX;
     else if (wrap && wrap.scrollWidth > wrap.clientWidth) {
-      const focus = $('.bldg.is-target .bldg-shape') || $('[data-building="hbll"] .bldg-shape');
-      const scale = wrap.scrollWidth / CAMPUS.w;
-      if (focus) wrap.scrollLeft = (focus.getBBox().x + focus.getBBox().width / 2) * scale - wrap.clientWidth / 2;
+      const focus = $('.outdoor-marker.is-target circle') || $('.bldg.is-target .bldg-shape') || $('[data-building="hbll"] .bldg-shape');
+      if (focus) { const r = focus.getBoundingClientRect(), w = wrap.getBoundingClientRect(); wrap.scrollLeft += r.x + r.width / 2 - w.x - wrap.clientWidth / 2; }
     }
     // Selected spot on the map: bring its card and the highlighted building into view.
     if (!keepScroll && target.y === 0 && h.startsWith('map-spot-') && $('#map-selected')) $('#map-selected').scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -257,6 +270,15 @@ document.addEventListener('click', (e) => {
   const backMap = t.closest('[data-back-map]');
   if (backMap && App.mapDepth > 0) { e.preventDefault(); history.go(-App.mapDepth); return; }
 
+  const layer = t.closest('[data-map-layer]');
+  if (layer) {
+    const f = Store.getFilters();
+    f.setting = layer.dataset.mapLayer === 'outdoors' ? 'outdoors' : (f.setting === 'outdoors' ? '' : f.setting);
+    Store.setFilters(f);
+    App.go('map');
+    $(`[data-map-layer="${layer.dataset.mapLayer}"]`).focus();
+    return;
+  }
   // Map building
   const bld = t.closest('[data-building]');
   if (bld) { App.go('building-' + bld.dataset.building); return; }
@@ -314,6 +336,12 @@ document.addEventListener('click', (e) => {
   const tag = t.closest('[data-add-tag]');
   if (tag) { const k = tag.dataset.addTag; AddState.tags[k] = !AddState.tags[k]; App.refresh(); $(`[data-add-tag="${k}"]`).focus(); return; }
   if (t.closest('[data-add-cancel]')) { AddState.reset(); App.go('list'); return; }
+  const campus = t.closest('#add-campus-plan svg');
+  if (campus) {
+    const pin = campusPinAt(campus, e.clientX, e.clientY);
+    if (pin) { AddState.campusPin = pin; delete AddState.errors.location; App.refresh(); $('#add-campus-plan').focus(); }
+    return;
+  }
   const plan = t.closest('#add-plan svg');
   if (plan) {
     const pin = floorPinAt(plan, e.clientX, e.clientY);
@@ -367,6 +395,7 @@ function spotSaveError(err) {
   if (code === '42501' || /row-level security|permission denied/i.test(msg)) {
     return `Could not save your spot: the database doesn't allow it yet. ${fix}`;
   }
+  if (/campus_map_[xy]_percent/.test(msg)) return 'Could not save your outdoor spot: ask the database owner to apply the outdoor campus locations migration, then reload.';
   if (code === 'PGRST204' || code === '42703' || code === '23503' || code === '42883') {
     return `Could not save your spot: the database is missing a part this page needs. ${fix}`;
   }
@@ -382,12 +411,13 @@ document.addEventListener('submit', async (e) => {
   if (s.saving) return;
   s.errors = {};
   if (!s.name.trim()) s.errors.name = 'Enter a name for this spot.';
-  if (!s.building) s.errors.location = 'Choose a building.';
+  if (s.setting === 'outdoors') { if (!s.campusPin) s.errors.location = 'Click the campus map to place your outdoor spot.'; }
+  else if (!s.building) s.errors.location = 'Choose a building.';
   else if (!s.floor) s.errors.location = 'Choose a floor.';
   else if (!s.pin) s.errors.location = 'Click the floor plan to place a pin where the spot is.';
   if (Object.keys(s.errors).length) {
     App.refresh();
-    (s.errors.name ? $('#add-name') : $('#add-building')).focus();
+    (s.errors.name ? $('#add-name') : s.setting === 'outdoors' ? $('#add-campus-plan') : $('#add-building')).focus();
     return;
   }
   if (Store.needsLogin()) { toast('Log in to add a spot for your team.', { href: '#login', label: 'Log in' }); return; }
@@ -400,7 +430,7 @@ document.addEventListener('submit', async (e) => {
   let saved;
   try {
     saved = await Store.addUserSpot({
-      name: s.name.trim(), building: s.building, floor: s.floor, room: '', position: s.pin,
+      name: s.name.trim(), building: s.building, floor: s.setting === 'outdoors' ? null : s.floor, room: '', position: s.setting === 'outdoors' ? null : s.pin, campusPosition: s.setting === 'outdoors' ? s.campusPin : null,
       features, groupSize: s.groupSize, busyness: s.busyness, description: s.description.trim(),
     });
   } catch (err) {
@@ -421,6 +451,12 @@ document.addEventListener('submit', async (e) => {
 
 /* ---------------- Keyboard ---------------- */
 document.addEventListener('keydown', (e) => {
+  if (e.target.id === 'add-campus-plan' && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+    e.preventDefault();
+    const p = AddState.campusPin || {x:50,y:50};
+    AddState.campusPin = {x:Math.max(0,Math.min(100,p.x + (e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0))),y:Math.max(0,Math.min(100,p.y + (e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0)))};
+    delete AddState.errors.location; App.refresh(); $('#add-campus-plan').focus(); return;
+  }
   if (e.key === 'Escape') {
     if (homeMenuOpen()) { setHomeMenu(false); $('#home-btn').focus(); return; }
     if (accountMenuOpen()) { setAccountMenu(false); $('#account-btn').focus(); return; }
