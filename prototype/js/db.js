@@ -275,7 +275,15 @@ const DB = (() => {
     return !!(data && data.session);
   }
 
+  /** The logged-in person's access token, or null. Used by js/okr/okr-api.js. */
+  async function accessToken() {
+    if (!client) return null;
+    const { data } = await client.auth.getSession();
+    return (data && data.session && data.session.access_token) || null;
+  }
+
   return {
+    accessToken,
     ready: !!client, students, favoriteSpotIds, addFavorite, removeFavorite,
     buildings, studentSpots, addSpot, deleteSpot,
     signUp, signIn, signOut, currentStudent, recommendSpots,

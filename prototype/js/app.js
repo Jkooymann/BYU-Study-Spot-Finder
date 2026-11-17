@@ -149,6 +149,8 @@ const App = {
   async loadShared() {
     await Store.loadShared();
     this.refresh();
+    // OKR 1: start/stop the session as people log in and out (js/okr/session-tracker.js).
+    if (typeof SessionTracker !== 'undefined') SessionTracker.sync();
     if (Store.sharedStatus() === 'error') toast('Could not reach the database. Favorites are saved on this device for now.');
   },
 
