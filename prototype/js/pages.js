@@ -68,12 +68,14 @@ Pages.map = (spotId) => {
   const f = Store.getFilters();
   const active = Store.isActive(f);
   const all = Store.allSpots();
-  const target = spotId ? Store.getSpot(spotId) : null;
+  if (f.setting === 'outdoors') return Pages.outdoorMap(spotId);
+  const requested = spotId ? Store.getSpot(spotId) : null;
+  const target = requested && !requested.features.outdoors ? requested : null;
   const counts = {};
   BUILDINGS.forEach((b) => {
     counts[b.id] = {
-      total: all.filter((s) => s.building === b.id).length,
-      match: all.filter((s) => s.building === b.id && Store.matches(s, f)).length,
+      total: all.filter((s) => s.building === b.id && !hasCampusPin(s)).length,
+      match: all.filter((s) => s.building === b.id && !hasCampusPin(s) && Store.matches(s, f)).length,
     };
   });
   const anyMatch = BUILDINGS.some((b) => counts[b.id].match);
@@ -121,6 +123,7 @@ Pages.map = (spotId) => {
       title: 'Campus map',
       sub: active ? 'Gold buildings have spots that match your filters. Tap one to see its floors.' : 'Tap a building to see its floors and study spots. Numbers show how many spots each has.',
     })}
+    ${mapLayerSwitch(false)}
     ${toolbar()}
     ${active && !anyMatch ? noResults() : ''}
     ${selected}
@@ -151,13 +154,33 @@ Pages.map = (spotId) => {
   </section>`;
 };
 
+Pages.outdoorMap = (spotId) => {
+  const requested = spotId ? Store.getSpot(spotId) : null;
+  const target = requested && requested.features.outdoors ? requested : null;
+  const spots = Store.filtered().filter(s => s.features.outdoors);
+  const unplaced = spots.filter(s => !hasCampusPin(s));
+  const targetFilteredOut = target && !spots.some(s => s.id === target.id);
+  const visiblePins = targetFilteredOut && hasCampusPin(target) ? spots.concat(target) : spots;
+  return `<section class="page">
+    ${pageHeader({ title: 'Campus map', sub: 'Outdoor study spots. Tap a numbered pin to see details.' })}
+    ${mapLayerSwitch(true)}${toolbar()}
+    ${!spots.length ? noResults() : ''}
+    ${target ? `<div class="map-selected" id="map-selected">${spotCard(target)}${targetFilteredOut ? '<p class="fact-note">The selected spot does not match your current filters.</p>' : ''}${!hasCampusPin(target) ? '<p class="fact-note">This spot has an original floor pin but no campus pin yet.</p>' : ''}<button type="button" class="link-btn" data-close-popup>Clear</button></div>` : ''}
+    <div class="map-wrap" tabindex="0" role="region" aria-label="Scrollable outdoor campus map">${campusLocationSvg(null, visiblePins, target && target.id)}</div>
+    <p class="fact-note">Approximate campus locations. Nearby buildings are landmarks, not indoor locations.</p>
+    <a class="btn btn-secondary" href="#add-outdoors">${icon('plus')}Add an outdoor spot</a>
+    ${spots.some(hasCampusPin) ? `<h2 class="section-h">Outdoor spots</h2><div class="spot-list">${spots.filter(hasCampusPin).map((s,i) => spotCard(s,{num:i+1})).join('')}</div>` : ''}
+    ${unplaced.length ? `<h2 class="section-h">Campus pin needed</h2><p class="fact-note">These existing outdoor spots keep their original location information. No campus position has been guessed.</p><div class="spot-list">${unplaced.map(s => spotCard(s)).join('')}</div>` : ''}
+  </section>`;
+};
+
 /* ---------------- Page 3: Building Floor View ---------------- */
 Pages.building = (buildingId, floorArg) => {
   const b = buildingById(buildingId);
   if (!b) return Pages.notFound();
   const f = Store.getFilters();
   const active = Store.isActive(f);
-  const spots = Store.allSpots().filter((s) => s.building === b.id);
+  const spots = Store.allSpots().filter((s) => s.building === b.id && !hasCampusPin(s));
   // Use the team-supplied floor list even when a floor has no spots yet.
   const floors = b.floors;
   let floor = parseFloor(floorArg);
@@ -211,11 +234,13 @@ Pages.list = () => {
     body = noResults();
   } else if (sort === 'building') {
     const groups = BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name))
-      .map((b) => ({ b, list: spots.filter((s) => s.building === b.id).sort((x, y) => floorOrder(x.floor) - floorOrder(y.floor) || x.name.localeCompare(y.name)) }))
+      .map((b) => ({ b, list: spots.filter((s) => s.building === b.id && !s.features.outdoors).sort((x, y) => floorOrder(x.floor) - floorOrder(y.floor) || x.name.localeCompare(y.name)) }))
       .filter((g) => g.list.length);
     body = groups.map((g) => `<section class="list-group">
       <h2 class="group-h"><span class="group-h-code">${g.b.short}</span><a href="#building-${g.b.id}">${esc(g.b.name)}</a><span class="group-h-count">${plural(g.list.length, 'spot')}</span></h2>
       <div class="spot-list">${g.list.map((s) => spotCard(s, { flash: s.id === flash })).join('')}</div></section>`).join('');
+    const outdoor = spots.filter(s => s.features.outdoors);
+    if (outdoor.length) body += `<section class="list-group"><h2 class="group-h">Outdoor spots</h2><div class="spot-list">${outdoor.map(s => spotCard(s, {flash:s.id === flash})).join('')}</div></section>`;
   } else {
     const sorted = spots.slice().sort((a, b) => BUSYNESS.indexOf(a.busyness) - BUSYNESS.indexOf(b.busyness) || a.name.localeCompare(b.name));
     body = `<div class="spot-list">${sorted.map((s) => spotCard(s, { flash: s.id === flash })).join('')}</div>`;
@@ -244,13 +269,12 @@ Pages.favorites = () => {
 
   const spotsPanel = favs.length
     ? `<ul class="fav-list">${favs.map((s) => {
-        const b = buildingById(s.building);
         return `<li class="fav-item">
           <span class="fav-star" aria-hidden="true">${icon('star')}</span>
           <div class="fav-text">
             <button type="button" class="fav-name" data-open-spot="${s.id}">${esc(s.name)}</button>
             ${spotBadge(s)}
-            <p class="spot-meta">${esc(b.name)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}</p>
+            <p class="spot-meta">${esc(spotLocation(s))}</p>
           </div>
           <div class="fav-actions">
             <a class="btn btn-secondary btn-sm" href="#map-spot-${s.id}">${icon('map')}View on map</a>
@@ -292,7 +316,7 @@ function addSpotNote() {
 }
 const AddState = {
   reset() {
-    Object.assign(this, { name: '', building: '', floor: null, pin: null, groupSize: 'solo', busyness: 'Moderate', setting: 'indoors', tags: {}, description: '', errors: {}, submitted: false, saving: false });
+    Object.assign(this, { name: '', building: '', floor: null, pin: null, campusPin: null, groupSize: 'solo', busyness: 'Moderate', setting: 'indoors', tags: {}, description: '', errors: {}, submitted: false, saving: false });
   },
 };
 AddState.reset();
@@ -311,22 +335,27 @@ Pages.add = () => {
         <p class="field-error" id="add-name-err" ${e.name ? '' : 'hidden'}>${esc(e.name || '')}</p>
       </div>
 
+      <div class="field">
+        <span class="label">Indoors or outdoors</span>
+        ${settingPicker(s.setting, 'data-add-setting', false)}
+      </div>
+
       <fieldset class="field">
         <legend class="label">Location <span class="req">Required</span></legend>
         <div class="loc-row">
           <div class="loc-col">
-            <label for="add-building" class="label-sm">Building</label>
+            <label for="add-building" class="label-sm">${s.setting === 'outdoors' ? 'Nearby building (optional)' : 'Building'}</label>
             <select id="add-building" class="select${e.building ? ' has-error' : ''}">
               <option value="">Choose a building</option>
               ${BUILDINGS.slice().sort((a, b) => a.name.localeCompare(b.name)).map((x) => `<option value="${x.id}" ${s.building === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
             </select>
           </div>
-          ${b ? `<div class="loc-col"><span class="label-sm" id="floor-lbl">Floor</span>
+          ${b && s.setting !== 'outdoors' ? `<div class="loc-col"><span class="label-sm" id="floor-lbl">Floor</span>
             <div class="floor-pick" role="radiogroup" aria-labelledby="floor-lbl">
               ${b.floors.map((fl) => `<button type="button" role="radio" aria-checked="${s.floor === fl}" class="floor-pick-btn${s.floor === fl ? ' is-on' : ''}" data-add-floor="${fl}">${fl}</button>`).join('')}
             </div></div>` : ''}
         </div>
-        ${b && s.floor ? `<div class="pin-area">
+        ${s.setting === 'outdoors' ? `<div class="pin-area"><p class="pin-help">${s.campusPin ? 'Pin placed. Click again to move it.' : 'Click the campus map to place your outdoor spot.'}</p><div id="add-campus-plan" class="map-wrap" tabindex="0" aria-label="Outdoor location picker">${campusLocationSvg(s.campusPin, [], null, true)}</div><p class="fact-note">Approximate campus location. A building and floor are not required. Keyboard: focus the map and use arrow keys to place or move the pin.</p></div>` : b && s.floor ? `<div class="pin-area">
             <p class="pin-help">${s.pin ? `${icon('check')}Pin placed. Click again to move it.` : `${icon('pin')}Click inside the building outline to place your pin.`}</p>
             <p class="fact-note">Approximate building outline, shared across floors. Place pins inside the outline; courtyards are excluded.</p><div id="add-plan" class="add-plan">${floorPlanSvg(b.id, s.floor, existing.map((x, i) => ({ spot: x, num: i + 1, match: false })), { pin: s.pin, interactive: true })}</div>
             ${existing.length ? '<p class="fact-note">Gray markers are spots already on this floor.</p>' : ''}
@@ -342,11 +371,6 @@ Pages.add = () => {
       <div class="field">
         <span class="label">How busy it usually is</span>
         ${busynessPicker(s.busyness, 'data-add-busy')}
-      </div>
-
-      <div class="field">
-        <span class="label">Indoors or outdoors</span>
-        ${settingPicker(s.setting, 'data-add-setting', false)}
       </div>
 
       <div class="field">

@@ -118,7 +118,7 @@ const Store = (() => {
       const spots = buildings.then(() => DB.studentSpots())
         .catch((e) => { console.error('Could not load added spots from Supabase', e); return []; });
       const [me, loaded] = await Promise.all([DB.currentStudent(), spots]);
-      shared.spots = loaded.filter((s) => !inDataJs.has(s.dbId) && s.building);
+      shared.spots = loaded.filter((s) => !inDataJs.has(s.dbId) && (s.building || s.features.outdoors));
       shared.favDbIds = me ? await DB.favoriteSpotIds(me.user_id) : [];
       shared.me = me;
       shared.status = 'ok';

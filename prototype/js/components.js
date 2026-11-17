@@ -1,3 +1,30 @@
+// Campus positions are percentages of the campus SVG, never floor-plan positions.
+function hasCampusPin(s) {
+  const p = s.campusPosition;
+  return !!p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.x <= 100 && p.y >= 0 && p.y <= 100;
+}
+function spotLocation(s, short = false) {
+  const b = buildingById(s.building);
+  if (s.features.outdoors) return 'Outdoors' + (b ? ' · Near ' + (short ? b.short : b.name) : '');
+  return (b ? (short ? b.short : b.name) : 'Building unavailable') + ' · Floor ' + s.floor + (s.room ? ' · ' + s.room : '');
+}
+function mapLayerSwitch(outdoor) {
+  return `<div class="seg map-layer-switch" role="group" aria-label="Map view">
+    <button type="button" data-map-layer="buildings" aria-pressed="${!outdoor}" class="seg-opt ${!outdoor ? 'is-on' : ''}">Buildings</button>
+    <button type="button" data-map-layer="outdoors" aria-pressed="${outdoor}" class="seg-opt ${outdoor ? 'is-on' : ''}">Outdoor spots</button>
+  </div>`;
+}
+function campusLocationSvg(pin = null, spots = [], selectedId = null, picker = false) {
+  const buildings = BUILDINGS.map(b => { const m = CAMPUS_FOOTPRINTS[b.id]; return `<g class="campus-context"><path class="bldg-shape" d="${m.d}" fill-rule="evenodd"/><text class="bldg-short" x="${m.label[0]}" y="${m.label[1]}" text-anchor="middle">${b.short}</text></g>`; }).join('');
+  const markers = spots.filter(hasCampusPin).map((s, i) => `<g class="outdoor-marker${selectedId === s.id ? ' is-target' : ''}" transform="translate(${s.campusPosition.x * CAMPUS.w / 100} ${s.campusPosition.y * CAMPUS.h / 100})" data-open-spot="${s.id}" tabindex="0" role="button" aria-label="${esc(s.name)}"><circle r="15"/><text text-anchor="middle" dy="5">${i + 1}</text></g>`).join('');
+  return `<svg class="campus-map" viewBox="0 0 ${CAMPUS.w} ${CAMPUS.h}" role="group" aria-label="${picker ? 'Place outdoor spot on campus' : 'Outdoor study spots on campus'}"><rect class="map-ground" width="${CAMPUS.w}" height="${CAMPUS.h}" rx="18"/>${campusBackdrop()}${buildings}${markers}${pin ? `<g class="outdoor-marker is-target" transform="translate(${pin.x * CAMPUS.w / 100} ${pin.y * CAMPUS.h / 100})"><circle r="15"/><text text-anchor="middle" dy="5">✓</text></g>` : ''}</svg>`;
+}
+function campusPinAt(svg, clientX, clientY) {
+  const p = new DOMPoint(clientX, clientY).matrixTransform(svg.getScreenCTM().inverse());
+  if (p.x < 0 || p.y < 0 || p.x > CAMPUS.w || p.y > CAMPUS.h) return null;
+  return { x: p.x / CAMPUS.w * 100, y: p.y / CAMPUS.h * 100 };
+}
+
 /* =========================================================================
    Reusable components: icons, top bar + Home Menu, chips, badges, star
    spot card, active-filter bar, group-size picker, floor plan,
@@ -183,14 +210,14 @@ function spotBadge(s) {
 function spotCard(s, opts = {}) {
   const b = buildingById(s.building) || { short: s.building };
   const feats = FEATURES.filter((f) => s.features[f.key]);
-  return `<article class="spot-card${opts.dim ? ' is-dim' : ''}${opts.flash ? ' is-flash' : ''}" data-open-spot="${s.id}" tabindex="0" aria-label="${esc(s.name)}, ${esc(b.short)} floor ${s.floor}">
+  return `<article class="spot-card${opts.dim ? ' is-dim' : ''}${opts.flash ? ' is-flash' : ''}" data-open-spot="${s.id}" tabindex="0" aria-label="${esc(s.name)}, ${esc(spotLocation(s, true))}">
     ${opts.num ? `<span class="spot-num" aria-hidden="true">${opts.num}</span>` : ''}
     <div class="spot-card-main">
       <div class="spot-card-title">
         <h3>${esc(s.name)}</h3>
         ${spotBadge(s)}
       </div>
-      <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}</p>
+      <p class="spot-meta">${esc(spotLocation(s, true))}</p>
       <div class="spot-card-row">${groupBadge(s.groupSize)}${busyBadge(s.busyness)}</div>
       <ul class="feature-icons" aria-label="Features">
         ${feats.map((f) => `<li title="${f.label}">${icon(f.key)}<span class="sr-only">${f.label}</span></li>`).join('')}
@@ -468,14 +495,14 @@ const SpotDialog = {
       </header>
       <div class="sheet-body sd-body">
         <div class="sd-title">
-          <p class="eyebrow eyebrow-gold">${esc(b.name)}</p>
+          <p class="eyebrow eyebrow-gold">${esc(s.features.outdoors ? 'Outdoors' : b.name)}</p>
           <h2 id="sd-title">${esc(s.name)}</h2>
-          <p class="spot-meta">${esc(b.short)} · Floor ${s.floor}${s.room ? ' · ' + esc(s.room) : ''}${s.isUserSpot ? ' ' + spotBadge(s) : ''}</p>
+          <p class="spot-meta">${esc(spotLocation(s, true))}${s.isUserSpot ? ' ' + spotBadge(s) : ''}</p>
         </div>
         <div class="sd-actions">
           ${favButton(s.id, true)}
           <a class="btn btn-secondary" href="#map-spot-${s.id}">${icon('map')}Show on map</a>
-          <a class="btn btn-ghost" href="#building-${s.building}-f${s.floor}">${icon('layers')}Floor plan</a>
+          ${!s.features.outdoors || (!hasCampusPin(s) && b && s.floor != null) ? `<a class="btn btn-ghost" href="#building-${s.building}-f${s.floor}">${icon('layers')}${s.features.outdoors ? 'Original floor pin' : 'Floor plan'}</a>` : ''}
         </div>
         ${s.description ? `<p class="sd-desc">${esc(s.description)}</p>` : ''}
         <div class="sd-facts">
