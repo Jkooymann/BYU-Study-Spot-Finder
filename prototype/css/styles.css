@@ -570,7 +570,11 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .feature-list .not .ic { color: var(--muted); }
 .sd-danger { border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .sd-danger-row { display: flex; gap: 8px; }
-.sd-danger .btn-ghost.danger-text { align-self: flex-start; border-color: transparent; padding-left: 4px; }
+.sd-danger .btn-ghost.danger-text, .sd-danger .sd-edit-link { border-color: transparent; }
+/* Edit on the left, Delete on the right (Delete stays right even when there's no Edit). */
+.sd-manage-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sd-manage-row .sd-edit-link { padding-left: 4px; }
+.sd-manage-row .danger-text { margin-left: auto; padding-right: 4px; }
 
 /* ---------------- Favorites ---------------- */
 .fav-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }

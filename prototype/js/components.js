@@ -512,7 +512,6 @@ const SpotDialog = {
         <div class="sd-actions">
           ${favButton(s.id, true)}
           <a class="btn btn-secondary" href="#map-spot-${s.id}">${icon('map')}Show on map</a>
-          ${Store.canEditSpot(s) ? `<a class="btn btn-secondary" href="#edit-${s.id}" data-sd-edit="${s.id}">${icon('edit')}Edit spot</a>` : ''}
           ${!s.features.outdoors || (!hasCampusPin(s) && b && s.floor != null) ? `<a class="btn btn-ghost" href="#building-${s.building}-f${s.floor}">${icon('layers')}${s.features.outdoors ? 'Original floor pin' : 'Floor plan'}</a>` : ''}
         </div>
         ${s.description ? `<p class="sd-desc">${esc(s.description)}</p>` : ''}
@@ -537,13 +536,16 @@ const SpotDialog = {
             <span class="yn" aria-hidden="true">${s.features[f.key] ? '✓' : '✗'}</span>${icon(f.key)}<span>${f.label}</span>
             <span class="sr-only">${s.features[f.key] ? 'yes' : 'no'}</span></li>`).join('')}
         </ul>
-        ${Store.canDeleteSpot(s) ? `<div class="sd-danger">
-          ${this.confirming ? `
+        ${Store.canEditSpot(s) || Store.canDeleteSpot(s) ? `<div class="sd-danger">
+          ${this.confirming && Store.canDeleteSpot(s) ? `
             <p><strong>${s.shared ? 'Delete this shared spot?' : 'Delete your spot?'}</strong> ${s.isLocalSpot ? 'It will be removed from this device.' : s.shared ? 'It will be removed for everyone.' : 'It will be removed from your account.'}</p>
             <div class="sd-danger-row">
               <button type="button" class="btn btn-danger btn-sm" data-sd-delete-confirm>Delete spot</button>
               <button type="button" class="btn btn-ghost btn-sm" data-sd-delete-cancel>Cancel</button>
-            </div>` : `<button type="button" class="btn btn-ghost btn-sm danger-text" data-sd-delete>${icon('trash')}${s.shared ? 'Delete shared spot' : 'Delete my spot'}</button>`}
+            </div>` : `<div class="sd-manage-row">
+              ${Store.canEditSpot(s) ? `<a class="btn btn-ghost btn-sm sd-edit-link" href="#edit-${s.id}" data-sd-edit="${s.id}">${icon('edit')}Edit spot</a>` : ''}
+              ${Store.canDeleteSpot(s) ? `<button type="button" class="btn btn-ghost btn-sm danger-text" data-sd-delete>${icon('trash')}${s.shared ? 'Delete shared spot' : 'Delete my spot'}</button>` : ''}
+            </div>`}
         </div>` : ''}
       </div>`;
   },
