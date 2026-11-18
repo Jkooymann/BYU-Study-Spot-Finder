@@ -205,7 +205,15 @@ with sync_playwright() as p:
     def act(kind='click'):
         if kind == 'click': page.locator('.page-hero h1').click()
         elif kind == 'key': page.keyboard.press('Shift')
-        elif kind == 'wheel': page.mouse.move(600, 500); page.mouse.wheel(0, 40)
+        elif kind == 'wheel':
+            # Chrome hands wheel events to the page on the next animation frame, and the fake clock
+            # runs animation frames, so step it 50 ms and wait for the event before jumping ahead.
+            page.evaluate("window.__wheel = false; document.addEventListener('wheel', () => { window.__wheel = true; }, { once: true, capture: true })")
+            page.mouse.move(600, 500); page.mouse.wheel(0, 40)
+            for _ in range(20):
+                if page.evaluate('window.__wheel'): break
+                page.clock.run_for(50); page.wait_for_timeout(20)
+            assert page.evaluate('window.__wheel'), 'wheel event never arrived'
         elif kind == 'tap': page.dispatch_event('.page-hero h1', 'touchstart')
         page.wait_for_timeout(20)
     def set_visible(on):
