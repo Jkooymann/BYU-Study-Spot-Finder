@@ -22,7 +22,7 @@ const DB = (() => {
   ];
   const me = () => USERS.find((u) => u.email === load('session', null)) || null;
   const spot = (dbId, name, by, shared) => ({
-    id: 'd' + dbId, dbId, name, building: 'wsc', floor: 1, room: '', position: { x: 40, y: 40 }, campusPosition: null,
+    id: 'd' + dbId, dbId, name, building: 'wsc', floor: shared ? 7 : 1, room: '', position: { x: 40, y: 40 }, campusPosition: null,
     features: { quietZone: false, talkingAllowed: true, foodAllowed: false, outlets: true, wifi: true, tables: true, comfySeating: false, outdoors: false },
     groupSize: 'small group', busyness: 'Moderate', description: '', submittedBy: by, submittedByName: '', shared,
   });
@@ -84,12 +84,22 @@ with sync_playwright() as p:
 
     # Admin: Edit button on shared spots; the form opens filled in
     as_user('jason@byu.edu')
+    assert 'Floor 7' in card('Team Shared Spot').locator('.spot-meta').inner_text()
+    d = open_details('Team Shared Spot')
+    assert 'Floor 7' in d.locator('.spot-meta').inner_text()
+    d.locator('a[href="#building-wsc-f7"]').click()
+    page.wait_for_selector('.floor-tab.is-on')
+    assert page.locator('.floor-tab.is-on span').inner_text() == 'Floor 1'
+    assert page.locator('.fp-marker').count() == 0
+    page.goto(BASE_URL + '/#list')
     d = open_details('Team Shared Spot')
     d.locator('[data-sd-edit]').click(); page.wait_for_selector('#add-form')
     assert '#edit-d500' in page.url
     assert page.locator('h1', has_text='Edit spot').count() == 1
     assert page.input_value('#add-name') == 'Team Shared Spot'
     assert page.input_value('#add-building') == 'wsc'
+    assert page.locator('[data-add-floor]').all_inner_texts() == ['1', '2', '3']
+    assert page.locator('[data-add-floor][aria-checked="true"]').count() == 0
     assert page.locator('[data-add-group="small group"]').get_attribute('aria-checked') == 'true' or 'is-on' in (page.locator('[data-add-group="small group"]').get_attribute('class') or '')
     assert page.locator('[data-add-tag="wifi"]').get_attribute('aria-pressed') == 'true'
     assert 'Save changes' in page.locator('#add-form [type="submit"]').inner_text()
@@ -113,6 +123,7 @@ with sync_playwright() as p:
     assert page.locator('#sd-title').inner_text() == 'Renamed Spot'
     assert 'Great by the windows' in d.inner_text() and 'Usually busy' in d.inner_text()
     saved = page.evaluate("JSON.parse(localStorage.getItem('fake.spots')).find(s => s.dbId === 500)")
+    assert saved['floor'] == 7 and saved['position'] == {'x': 40, 'y': 40}, saved
     assert saved['features']['wifi'] is False and saved['features']['foodAllowed'] is True and saved['busyness'] == 'Usually busy', saved
     page.locator('[data-sd-close]').first.click(); page.wait_for_selector('#spot-dialog', state='hidden')
     assert card('Renamed Spot').count() == 1 and card('Team Shared Spot').count() == 0

@@ -1,8 +1,32 @@
 """Team-provided floor labels, basement routing, and local pin persistence."""
 import os
 from playwright.sync_api import sync_playwright
-EXPECTED = {"arts": [1, 2, 3, 4], "bnsn": ["B", 1, 2, 3, 4, 5], "canc": [1], "cb": [1, 2, 3, 4, 5], "ctb": [1, 2, 3, 4, 5, 6, 7, 8, 9], "eb": [1, 2, 3, 4, 5], "esc": ["B", 1, 2, 3, 4, 5, 6], "hbll": [1, 2, 3, 4, 5, 6, 7, 8], "hrcb": [1, 2], "jfsb": ["B", 1, 2, 3, 4, 5], "jkb": [1, 2, 3, 4, 5, 6, 7, 8], "jrcb": ["B", 1, 2, 3, 4, 5], "jsb": [1, 2, 3], "kmbl": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], "lsb": [1, 2, 3, 4, 5, 6, 7], "marb": [1, 2, 3], "mb": [1, 2, 3, 4], "mckb": [1, 2, 3], "rb": [1, 2, 3], "snlb": [1, 2], "tmcb": [1, 2, 3, 4, 5, 6, 7, 8], "tnrb": [1, 2, 3, 4, 5, 6, 7, 8], "wsc": [1, 2, 3, 4, 5, 6, 7]}
-BASE_URL = os.environ.get('TEST_BASE_URL', 'http://127.0.0.1:8011')
+EXPECTED = {
+    "arts": [1, 2, 3, 4],
+    "bnsn": ["B", 1, 2, 3, 4],
+    "canc": [1],
+    "cb": [1, 2, 3, 4, 5],
+    "ctb": [1, 2, 3, 4],
+    "eb": [1, 2, 3, 4],
+    "esc": ["B", 1, 2, 3, 4],
+    "hbll": [1, 2, 3, 4, 5, 6],
+    "hrcb": [1, 2],
+    "jfsb": ["B", 1, 2, 3, 4],
+    "jkb": [1, 2, 3, 4],
+    "jrcb": ["B", 1, 2, 3, 4, 5],
+    "jsb": [1, 2, 3],
+    "kmbl": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "lsb": [1, 2, 3, 4, 5],
+    "marb": [1, 2, 3],
+    "mb": [1, 2, 3, 4],
+    "mckb": [1, 2, 3],
+    "rb": [1, 2],
+    "snlb": [1, 2],
+    "tmcb": [1, 2, 3],
+    "tnrb": [1, 2, 3, 4, 5, 6, 7],
+    "wsc": [1, 2, 3],
+}
+BASE_URL = os.environ.get('TEST_BASE_URL', 'http://127.0.0.1:8000')
 with sync_playwright() as p:
     browser=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
     page=browser.new_page(); errors=[]
@@ -17,6 +41,13 @@ with sync_playwright() as p:
             assert page.locator('.floor-tab span').all_inner_texts()==['Floor '+str(f) for f in floors]
             assert page.locator('.floor-tab.is-on span').inner_text()=='Floor '+str(floor)
             assert page.locator('.fp-outline').get_attribute('d')==page.evaluate('(id)=>CAMPUS_FOOTPRINTS[id].d',building)
+        page.goto(BASE_URL+'/#add-'+building)
+        page.wait_for_selector('[data-add-floor]')
+        assert page.locator('[data-add-floor]').all_inner_texts() == [str(f) for f in floors]
+        if building == 'kmbl':
+            page.locator('[data-add-floor="12"]').click()
+            assert page.locator('[data-add-floor="12"]').get_attribute('aria-checked') == 'true'
+            assert page.evaluate('AddState.floor') == 12
         if 'B' in floors:
             page.goto(BASE_URL+'/#building-'+building+'-fB')
             page.locator('a[href="#add-'+building+'-fB"]').click()
@@ -44,4 +75,4 @@ with sync_playwright() as p:
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     assert not errors,errors
     browser.close()
-    print('PASS: exact floor tabs for all 23 buildings, outlines, four basement add/reload flows, mobile layout')
+    print('PASS: exact floor tabs and Add pickers for all 23 buildings, outlines, Floor 12 selection, four basement add/reload flows, mobile layout')
