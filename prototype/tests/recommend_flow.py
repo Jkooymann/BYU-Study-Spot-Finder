@@ -120,6 +120,9 @@ with sync_playwright() as p:
     assert box['x'] >= 0 and box['x'] + box['width'] <= 375 and box['y'] > 0, box
     nav = page.locator('.topbar').bounding_box()
     assert box['y'] >= nav['y'] + nav['height'], (box, nav)
+    bottom_nav = page.locator('.main-nav').bounding_box()
+    assert fab['y'] + fab['height'] <= bottom_nav['y'], (fab, bottom_nav)
+    assert box['y'] + box['height'] <= bottom_nav['y'], (box, bottom_nav)
     page.screenshot(path=os.environ.get('SHOT', '/tmp/ai_panel_phone.png'))
     page.keyboard.press('Escape')
     page.set_viewport_size({'width': 1280, 'height': 800})

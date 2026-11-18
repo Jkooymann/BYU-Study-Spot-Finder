@@ -59,6 +59,11 @@ with sync_playwright() as p:
         page.evaluate(f"localStorage.setItem('fake.session', JSON.stringify({'null' if email is None else repr(email)}))")
         page.goto(BASE_URL + '/#start'); page.reload()
         page.evaluate("App.go('list')"); page.wait_for_selector('.spot-card')
+    def add_menu_description():
+        page.click('#home-btn')
+        description = page.locator('#home-menu [data-menu-route="add"] .menu-item-sub').inner_text()
+        page.keyboard.press('Escape')
+        return description
     def card(name):
         return page.locator('.spot-card', has_text=name)
     def open_details(name):
@@ -75,6 +80,7 @@ with sync_playwright() as p:
 
     # Logged out: shared spots only, no labels, no delete buttons
     as_user(None)
+    assert add_menu_description() == 'Save a spot you love'
     assert card('Team Shared Spot').count() == 1 and card('Alice Secret Spot').count() == 0
     assert page.locator('.private-badge').count() == 0
     page.goto(BASE_URL + '/#add'); page.wait_for_selector('#app')
@@ -82,6 +88,7 @@ with sync_playwright() as p:
 
     # Alice: her private spot (labelled) + shared; can delete hers, not the shared one
     as_user('alice@byu.edu')
+    assert add_menu_description() == 'Save a spot you love'
     assert card('Alice Secret Spot').locator('.private-badge').inner_text().strip() == 'Only you'
     assert card('Team Shared Spot').locator('.private-badge').count() == 0
     d = open_details('Team Shared Spot')
@@ -104,6 +111,7 @@ with sync_playwright() as p:
 
     # Jason (admin): adds shared spots, can delete shared spots, doesn't see Alice's
     as_user('jason@byu.edu')
+    assert add_menu_description() == 'Share a spot you love'
     assert card('Alice Secret Spot').count() == 0
     note, msg = add_spot('Admin Shared Spot')
     assert 'shared with everyone' in note and '(team admin)' in note, note
