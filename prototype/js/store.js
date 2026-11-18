@@ -70,6 +70,24 @@ const Store = (() => {
     if (!shared.me || spot.dbId == null) return false;
     return spot.shared ? !!shared.me.isAdmin : spot.submittedBy === shared.me.user_id;
   }
+  /**
+   * True when the person looking can edit this spot: only the team admin, and only
+   * shared database spots. This only decides whether to show the Edit button; the
+   * database function admin_update_spot makes the real decision.
+   */
+  function canEditSpot(spot) {
+    return !!(spot && shared.status === 'ok' && shared.me && shared.me.isAdmin && spot.dbId != null && spot.shared && !spot.isLocalSpot);
+  }
+
+  /** Team admin: save changes to a shared spot. Rejects (nothing changes) if the database refuses. */
+  async function updateSpot(id, changes) {
+    const spot = getSpot(id);
+    if (!canEditSpot(spot)) throw new Error('Only the team admin can edit this spot.');
+    const saved = await DB.updateSpot(spot.dbId, changes);
+    shared.spots = shared.spots.map((s) => (s.id === id ? saved : s));
+    return { ...saved, isUserSpot: true };
+  }
+
   /** True when the logged-in person is the team's shared-spots admin. */
   function isAdmin() { return !!(shared.me && shared.me.isAdmin); }
 
@@ -238,7 +256,7 @@ const Store = (() => {
   function setPref(key, value) { write('pref.' + key, value); }
 
   return {
-    allSpots, getSpot, getSpotByDbId, addUserSpot, deleteSpot, canDeleteSpot, isPrivateSpot, isAdmin, randomSpot,
+    allSpots, getSpot, getSpotByDbId, addUserSpot, updateSpot, canEditSpot, deleteSpot, canDeleteSpot, isPrivateSpot, isAdmin, randomSpot,
     sharedStatus, currentStudent, needsLogin, loadShared,
     favorites, isFav, toggleFav,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,

@@ -273,6 +273,7 @@ function favoritesNote() {
 /* ---------------- Page 10: Add a Spot ---------------- */
 function addSpotNote() {
   const me = Store.currentStudent();
+  if (AddState.editingId) return `Editing as <strong>${esc(me ? me.display_name : '')}</strong> (team admin). Changes are <strong>shared with everyone</strong>.`;
   if (Store.sharedStatus() === 'ok' && me && Store.isAdmin()) return `Adding as <strong>${esc(me.display_name)}</strong> (team admin). This spot will be <strong>shared with everyone</strong>.`;
   if (Store.sharedStatus() === 'ok' && me) return `Adding as <strong>${esc(me.display_name)}</strong>. This spot will be <strong>private</strong>: only you will see it when you’re logged in.`;
   if (Store.needsLogin()) return '<a href="#login">Log in</a> to add a spot. Spots you add are private to your account.';
@@ -282,17 +283,34 @@ function addSpotNote() {
 }
 const AddState = {
   reset() {
-    Object.assign(this, { name: '', building: '', floor: null, pin: null, campusPin: null, groupSize: 'solo', busyness: 'Moderate', setting: 'indoors', tags: {}, description: '', errors: {}, submitted: false, saving: false });
+    Object.assign(this, { editingId: null, name: '', building: '', floor: null, pin: null, campusPin: null, groupSize: 'solo', busyness: 'Moderate', setting: 'indoors', tags: {}, description: '', errors: {}, submitted: false, saving: false });
   },
+};
+/** Fill the form with an existing spot so the team admin can edit it. */
+AddState.loadFrom = function (spot) {
+  this.reset();
+  const outdoors = !!spot.features.outdoors;
+  const tags = {};
+  FILTER_FEATURES.forEach((f) => { if (spot.features[f.key]) tags[f.key] = true; });
+  Object.assign(this, {
+    editingId: spot.id, name: spot.name, building: spot.building || '',
+    setting: outdoors ? 'outdoors' : 'indoors',
+    floor: outdoors ? null : spot.floor,
+    pin: !outdoors && spot.position ? { ...spot.position } : null,
+    campusPin: outdoors && spot.campusPosition ? { ...spot.campusPosition } : null,
+    groupSize: spot.groupSize, busyness: spot.busyness, tags, description: spot.description || '',
+  });
 };
 AddState.reset();
 
 Pages.add = () => {
   const s = AddState, e = s.errors;
   const b = buildingById(s.building);
-  const existing = b && s.floor ? Store.allSpots().filter((x) => x.building === b.id && x.floor === s.floor) : [];
+  const existing = b && s.floor ? Store.allSpots().filter((x) => x.building === b.id && x.floor === s.floor && x.id !== s.editingId) : [];
+  const editing = !!s.editingId;
   return `<section class="page page-narrow">
-    ${pageHeader({ title: 'Add a spot', sub: 'Share a spot so other students can find it.' })}
+    ${editing ? pageHeader({ title: 'Edit spot', sub: 'Change any details, then save. Everyone will see the update.' })
+      : pageHeader({ title: 'Add a spot', sub: 'Share a spot so other students can find it.' })}
     ${notice(addSpotNote())}
     <form id="add-form" class="form" novalidate>
       <div class="field">
@@ -352,7 +370,7 @@ Pages.add = () => {
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary btn-lg">${icon('plus')}Add spot</button>
+        <button type="submit" class="btn btn-primary btn-lg">${editing ? `${icon('check')}Save changes` : `${icon('plus')}Add spot`}</button>
         <button type="button" class="btn btn-ghost btn-lg" data-add-cancel>Cancel</button>
       </div>
     </form>

@@ -3,6 +3,7 @@
    Routes:  #start  #map  #map-spot-<id>  #building-<id>[-f<floor>]
             #spot-<id> (Spot Details over the page you came from)
             #list  #favorites  #add  #add-<building id> (Add a Spot with the building picked)
+            #edit-<spot id> (team admin only: the Add a Spot form filled with that spot)
             #okr (OKR Trackers: team admin only, js/okr/okr-trackers-page.js)
    ========================================================================= */
 
@@ -40,6 +41,14 @@ const App = {
     // Already logged in: skip the Welcome / Log in / Create account pages.
     // (#reset-password stays: opening a reset link logs the person in so they can set a new password.)
     if (AccountPages.isPublic(h) && h !== 'reset-password' && AccountSession.signedIn) { h = 'start'; history.replaceState(null, '', '#start'); }
+    // #edit-<spot id>: team admin edits a shared spot in the Add a Spot form.
+    // Wait for the database before deciding (a reload lands here before spots load).
+    if (h.startsWith('edit-')) {
+      if (!this.base.startsWith('edit-')) this.editReturnBase = this.base;
+      const spot = Store.getSpot(h.slice(5));
+      if (Store.canEditSpot(spot)) { if (AddState.editingId !== spot.id) AddState.loadFrom(spot); }
+      else if (Store.sharedStatus() !== 'loading') { if (AddState.editingId) AddState.reset(); this.go(spot ? 'spot-' + spot.id : 'list'); return; }
+    } else if (AddState.editingId) AddState.reset(); // leaving the edit form drops the changes
     // #add-<building>: open Add a Spot with that building already chosen.
     if (h === 'add-outdoors') { AddState.reset(); AddState.setting = 'outdoors'; h = 'add'; history.replaceState(null, '', '#add'); }
     if (h.startsWith('add-')) {
@@ -57,6 +66,8 @@ const App = {
     FilterPanel.close();
     if (h.startsWith('spot-')) {
       const id = h.slice(5);
+      // Spot Details opened from (or returning past) the edit form: show it over the page before the form.
+      if (this.base.startsWith('edit-')) this.base = this.editReturnBase || 'list';
       if (!Store.getSpot(id)) { this.go('list'); return; }
       if (this.renderedBase !== this.base) this.renderBase(this.base);
       SpotDialog.open(id);
@@ -88,6 +99,7 @@ const App = {
     if (h.startsWith('map') || h.startsWith('building')) return 'map';
     if (h.startsWith('favorites')) return 'favorites';
     if (['list', 'add', 'start', 'okr'].includes(h)) return h;
+    if (h.startsWith('edit-')) return 'add';
     return '';
   },
 
@@ -121,6 +133,7 @@ const App = {
     else if (h === 'list') html = Pages.list();
     else if (h === 'favorites' || h === 'favorites-filters') html = Pages.favorites(); // old saved-filters link still works
     else if (h === 'add') html = Pages.add();
+    else if (h.startsWith('edit-')) html = AddState.editingId ? Pages.add() : `<section class="page"><p class="notice">Loading…</p></section>`;
     // Admin only: the page shows nothing for anyone else, and the numbers come from a database
     // function that refuses non-admins (so typing #okr in the address bar gets you nothing).
     else if (h === 'okr' && typeof OKRTrackersPage !== 'undefined') html = OKRTrackersPage.render();
@@ -132,6 +145,7 @@ const App = {
     if (h === 'okr' && typeof OKRTrackersPage !== 'undefined') OKRTrackersPage.mount();
     const names = { start: 'Get Started', map: 'Campus Map', list: 'Study Spots', favorites: 'Favorites', add: 'Add a Spot', okr: 'OKR Trackers' };
     document.title = `${AccountPages.titles[h] || names[this.pageKeyFor(h)] || 'Floor View'} · BYU Study Spot Finder`;
+    if (h.startsWith('edit-')) document.title = 'Edit Spot · BYU Study Spot Finder';
     if (h.startsWith('building-')) document.title = `${(buildingById(h.slice(9).split('-f')[0]) || {}).name || 'Building'} · BYU Study Spot Finder`;
     window.scrollTo(0, target.y);
     const tabs = $('.floor-tabs');
@@ -154,7 +168,9 @@ const App = {
   /** Load shared favorites from Supabase, then redraw. */
   async loadShared() {
     await Store.loadShared();
-    this.refresh();
+    // Reloaded on the edit form: now that spots are loaded, open it (or leave if not allowed).
+    if (this.base.startsWith('edit-') && !AddState.editingId) this.route();
+    else this.refresh();
     // OKR 1: start/stop the session as people log in and out (js/okr/session-tracker.js).
     if (typeof SessionTracker !== 'undefined') SessionTracker.sync();
     if (Store.sharedStatus() === 'error') toast('Could not reach the database. Favorites are saved on this device for now.');
@@ -188,6 +204,16 @@ const App = {
     FilterPanel.close();
     this.go('spot-' + choice.id);
     toast(`Random pick: ${choice.name}`);
+  },
+
+  /** Leave the edit form for spot `id`: back to its details if we came from there. */
+  leaveEdit(id) {
+    const fromDetails = this.editFromSpot === id && this.navCount > 0;
+    this.editFromSpot = null;
+    AddState.reset();
+    if (!Store.getSpot(id)) { this.go('list'); return; }
+    if (fromDetails) history.back();
+    else this.go('spot-' + id);
   },
 
   closeSpot() {
@@ -236,6 +262,8 @@ document.addEventListener('click', (e) => {
   // Spot details internals
   if (t.closest('#spot-dialog')) {
     if (t.closest('[data-sd-close]')) { App.closeSpot(); return; }
+    const edit = t.closest('[data-sd-edit]');
+    if (edit) { App.editFromSpot = edit.dataset.sdEdit; return; } // the link itself opens #edit-<id>
     if (t.closest('[data-sd-delete]')) { SpotDialog.confirming = true; SpotDialog.render(); $('[data-sd-delete-confirm]').focus(); return; }
     if (t.closest('[data-sd-delete-cancel]')) { SpotDialog.confirming = false; SpotDialog.render(); return; }
     if (t.closest('[data-sd-delete-confirm]')) {
@@ -349,7 +377,10 @@ document.addEventListener('click', (e) => {
   if (st) { AddState.setting = st.dataset.addSetting; App.refresh(); $(`[data-add-setting="${st.dataset.addSetting}"]`).focus(); return; }
   const tag = t.closest('[data-add-tag]');
   if (tag) { const k = tag.dataset.addTag; AddState.tags[k] = !AddState.tags[k]; App.refresh(); $(`[data-add-tag="${k}"]`).focus(); return; }
-  if (t.closest('[data-add-cancel]')) { AddState.reset(); App.go('list'); return; }
+  if (t.closest('[data-add-cancel]')) {
+    if (AddState.editingId) { App.leaveEdit(AddState.editingId); return; }
+    AddState.reset(); App.go('list'); return;
+  }
   const campus = t.closest('#add-campus-plan svg');
   if (campus) {
     const pin = campusPinAt(campus, e.clientX, e.clientY);
@@ -438,15 +469,17 @@ document.addEventListener('submit', async (e) => {
   const features = {};
   FILTER_FEATURES.forEach((f) => { features[f.key] = !!s.tags[f.key]; });
   features.outdoors = s.setting === 'outdoors';
+  const fields = {
+    name: s.name.trim(), building: s.building, floor: s.setting === 'outdoors' ? null : s.floor, room: '', position: s.setting === 'outdoors' ? null : s.pin, campusPosition: s.setting === 'outdoors' ? s.campusPin : null,
+    features, groupSize: s.groupSize, busyness: s.busyness, description: s.description.trim(),
+  };
+  if (s.editingId) { saveSpotEdit(s.editingId, fields, e.target.querySelector('[type="submit"]')); return; }
   const submitBtn = e.target.querySelector('[type="submit"]');
   s.saving = true;
   submitBtn.disabled = true;
   let saved;
   try {
-    saved = await Store.addUserSpot({
-      name: s.name.trim(), building: s.building, floor: s.setting === 'outdoors' ? null : s.floor, room: '', position: s.setting === 'outdoors' ? null : s.pin, campusPosition: s.setting === 'outdoors' ? s.campusPin : null,
-      features, groupSize: s.groupSize, busyness: s.busyness, description: s.description.trim(),
-    });
+    saved = await Store.addUserSpot(fields);
   } catch (err) {
     console.error('Could not save spot', err);
     toast(spotSaveError(err), { duration: 9000 });
@@ -463,6 +496,33 @@ document.addEventListener('submit', async (e) => {
     : saved.shared ? `Added “${saved.name}” for everyone` : `Added “${saved.name}” to your private spots`);
   App.go('list');
 });
+
+/** Team admin: save the edit form. The database refuses anyone else. */
+async function saveSpotEdit(id, fields, submitBtn) {
+  const s = AddState;
+  s.saving = true;
+  submitBtn.disabled = true;
+  let saved;
+  try {
+    saved = await Store.updateSpot(id, fields);
+  } catch (err) {
+    console.error('Could not save spot changes', err);
+    const msg = String((err && err.message) || '');
+    const code = err && err.code;
+    let text;
+    if (code === '42501' || /only the team admin/i.test(msg)) text = 'Only the team admin can edit spots. Log in with the admin account and try again.';
+    else if (code === 'PGRST202' || code === '42883') text = 'Could not save: the database is missing the edit feature. Run supabase/migrations/20261118030000_admin_edit_spots.sql in the Supabase SQL Editor.';
+    else if (code === 'P0002') text = 'Could not save: that spot was deleted or is not a shared spot.';
+    else text = spotSaveError(err).replace('Could not save your spot', 'Could not save your changes');
+    toast(text, { duration: 9000 });
+    return;
+  } finally {
+    s.saving = false;
+    if (submitBtn.isConnected) submitBtn.disabled = false;
+  }
+  toast(`Saved changes to “${saved.name}”`);
+  App.leaveEdit(id);
+}
 
 /* ---------------- Keyboard ---------------- */
 document.addEventListener('keydown', (e) => {
