@@ -5,7 +5,7 @@ Run with a local prototype server (same setup as account_flow.py):
 js/db.js is replaced with an in-memory fake and external requests are blocked.
 """
 import os
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 from sample_spots import use_sample_spots
 
 BASE_URL = os.environ.get('TEST_BASE_URL', 'http://127.0.0.1:8000')
@@ -69,6 +69,8 @@ with sync_playwright() as p:
     page.keyboard.press('Escape')
 
     # Get Started: 9 equal options incl. WiFi; Indoors and Outdoors are one choice.
+    assert page.locator('#go-btn').inner_text() == 'Browse all spots'
+    assert page.locator('#go-btn').evaluate("el => getComputedStyle(el).backgroundColor") == page.locator('#random-btn').evaluate("el => getComputedStyle(el).backgroundColor")
     chips = page.locator('[data-start-chip]')
     assert chips.count() == 9
     assert page.locator('[data-start-chip="talkingAllowed"]').inner_text().strip() == 'Talking allowed'
@@ -141,7 +143,13 @@ with sync_playwright() as p:
     for route in ['start', 'map', 'list', 'favorites', 'add']:
         page.goto(BASE_URL + '/#' + route); page.wait_for_selector('.page-hero')
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), route
-    page.goto(BASE_URL + '/#list'); page.wait_for_selector('.spot-card')
+    nav = page.get_by_role('navigation', name='Main')
+    box = nav.bounding_box()
+    assert box['x'] == 0 and box['width'] == 375 and box['y'] + box['height'] == 667, box
+    nav.get_by_role('link', name='List').click()
+    page.wait_for_url('**/#list')
+    page.wait_for_selector('.spot-card')
+    expect(nav.locator('[aria-current="page"]')).to_have_text('List')
     page.evaluate('window.scrollTo(0, 600)'); page.evaluate('FilterPanel.open()')
     assert page.evaluate("getComputedStyle(document.body).position") == 'fixed'
     assert page.evaluate("(() => { const b = document.querySelector('#filter-panel .sheet-body'); return b.scrollHeight > b.clientHeight && getComputedStyle(b).overflowY === 'auto'; })()")

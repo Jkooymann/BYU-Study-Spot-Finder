@@ -47,6 +47,7 @@
   --r: 16px;
   --r-lg: 22px;
   --tap: 44px;
+  --bottom-nav-height: 0px;
   color-scheme: light;
 }
 
@@ -98,7 +99,7 @@ button { cursor: pointer; }
 
 /* ---------------- Top bar ---------------- */
 .topbar {
-  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30;
+  position: sticky; top: 0; z-index: 30; padding-top: env(safe-area-inset-top, 0px);
   background: var(--bar);
   color: #fff;
   box-shadow: 0 2px 10px rgba(5, 20, 45, .18);
@@ -120,9 +121,6 @@ button { cursor: pointer; }
 .nav-link:hover { background: rgba(255,255,255,.35); color: #072a52; }
 .nav-link.is-current { background: #072a52; color: #fff; }
 .nav-link .ic { width: 18px; height: 18px; }
-@media (max-width: 420px) {
-  .nav-link { flex-direction: column; gap: 2px; min-height: 48px; padding: 4px 2px; font-size: .78rem; }
-}
 .topbar-right { grid-area: home; display: flex; align-items: center; gap: 8px; }
 .brand:hover .brand-name { color: #fff; text-decoration: underline; text-decoration-color: var(--accent-on-bar); text-underline-offset: 4px; }
 
@@ -185,7 +183,7 @@ button { cursor: pointer; }
 }
 
 /* ---------------- Page layout ---------------- */
-#app { max-width: 1120px; margin: 0 auto; padding: 0 16px 80px; }
+#app { max-width: 1120px; margin: 0 auto; padding: 0 16px var(--page-bottom-padding, 80px); }
 .page { display: flex; flex-direction: column; gap: 24px; }
 
 /* Page header: a navy band right under the top bar, the same on every page.
@@ -257,36 +255,38 @@ button { cursor: pointer; }
 .active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 /* ---------------- Get Started ---------------- */
-.start { max-width: 820px; margin: 0 auto; gap: 28px; }
-.page-hero .display { font-size: clamp(2.4rem, 7vw, 4.25rem); line-height: 1.04; letter-spacing: -.025em; }
-.start .hero-sub { font-size: clamp(1.05rem, 2vw, 1.3rem); }
-/* Home fills the screen: the navy hero takes up any spare height, so there's no empty band at the bottom. */
-#app:has(> .start) { padding-bottom: 24px; }
-.start { min-height: calc(100dvh - var(--topbar-h, 64px) - 24px); }
-.start > .page-hero { flex: 1 0 auto; justify-content: center; padding-block: 40px; }
-@media (min-width: 640px) { .start .chip-lg { min-height: 76px; font-size: 1.05rem; } }
-.start-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.start { max-width: 920px; margin: 0 auto; gap: clamp(16px, 3vh, 24px); }
+#app:has(> .start) { padding-bottom: var(--page-bottom-padding, 24px); }
+.start > .page-hero { padding-block: clamp(20px, 4vh, 36px); }
+.start .display { font-size: clamp(1.9rem, 1rem + 2.5vw, 3rem); line-height: 1.08; letter-spacing: -.025em; }
+.start .hero-sub { font-size: clamp(1rem, .9rem + .4vw, 1.2rem); }
+.start-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .chip-lg {
-  position: relative; border-radius: var(--r); min-height: 64px; padding: 10px 14px; justify-content: flex-start; text-align: left;
+  position: relative; border-radius: var(--r); min-height: 56px; padding: 8px 12px; justify-content: flex-start; text-align: left;
   font-size: .98rem; line-height: 1.25; box-shadow: var(--shadow);
 }
+.chip-lg > span:first-of-type { overflow-wrap: anywhere; }
 .chip-lg .ic { width: 22px; height: 22px; color: var(--accent-ink); }
 .chip-lg.is-on .ic { color: var(--on-primary); }
 .chip-check { margin-left: auto; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 99px; border: 1.5px solid var(--border); flex: none; }
 .chip-check .ic { width: 14px; height: 14px; opacity: 0; }
 .chip-lg.is-on .chip-check { background: var(--accent); border-color: var(--accent); }
 .chip-lg.is-on .chip-check .ic { opacity: 1; color: #3a2400; }
-/* Go and Pick a random spot: two clear choices with an "or" between them */
-.start-actions {
-  display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start;
-  padding: 20px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+@media (width < 420px) {
+  .chip-lg { padding-inline: 8px; }
+  .chip-check { width: 20px; height: 20px; }
 }
-.start-action { display: flex; flex-direction: column; gap: 8px; }
+/* Give both Home actions the same emphasis. */
+.start-actions {
+  display: grid; gap: 10px; align-items: center;
+  padding: 14px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.start .btn-primary { background: #1262b2; color: #fff; white-space: normal; text-align: center; }
+.start .btn-primary:hover:not(:disabled) { background: #0d4e91; }
 .start-or { justify-self: center; font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 @media (min-width: 640px) {
-  .start-chips { grid-template-columns: repeat(3, 1fr); }
-  .start-actions { grid-template-columns: 1fr auto 1fr; padding: 24px; }
-  .start-or { align-self: center; margin-top: -26px; }
+  .start-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .start-actions { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding: 16px; }
 }
 
 /* ---------------- Toolbar & group size ---------------- */
@@ -612,7 +612,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 
 /* ---------------- Toast ---------------- */
 .toast {
-  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 80;
+  position: fixed; left: 50%; bottom: calc(20px + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)); z-index: 80;
   transform: translate(-50%, 20px); opacity: 0; transition: opacity .2s, transform .2s;
   max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 14px;
   background: var(--text); color: var(--bg); font-weight: 650; box-shadow: var(--shadow-lg);
@@ -622,7 +622,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* ---------------- AI suggestions (✨ button + panel, js/recommend.js) ---------------- */
 /* Below the sheets/backdrop (z 50+) so an open sheet covers it; above the page and top bar. */
 .ai-fab {
-  position: fixed; z-index: 45; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  position: fixed; z-index: 45; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; min-width: 52px; padding: 0 18px 0 16px;
   border-radius: 99px; border: 2px solid var(--accent); background: var(--bar); color: #fff;
   font-weight: 750; font-size: .95rem; box-shadow: var(--shadow-lg); transition: transform .15s, background .15s;
@@ -631,16 +631,54 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .ai-fab:hover { transform: translateY(-1px); background: #0b3a6f; }
 .ai-fab.is-open { background: var(--accent); color: #072a52; }
 .ai-fab.is-open .ic { color: #072a52; }
-@media (max-width: 600px) {
-  .ai-fab { padding: 0; width: 52px; }
-  .ai-fab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .toast { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
-}
 .ai-panel {
-  position: fixed; z-index: 46; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-  width: min(380px, calc(100vw - 32px)); max-height: min(560px, calc(100dvh - 180px)); display: flex; flex-direction: column;
+  position: fixed; z-index: 46; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(80px + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  width: min(380px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  max-height: min(560px, calc(100dvh - var(--topbar-h, 64px) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px) - 88px)); display: flex; flex-direction: column;
   background: var(--surface); color: var(--text); border: 1px solid var(--border); border-top: 4px solid var(--accent);
   border-radius: var(--r-lg); box-shadow: var(--shadow-lg); animation: pop .14s ease-out;
+}
+/* Phone navigation also applies to touch phones with wide landscape viewports. */
+@media (width < 760px), (max-width: 950px) and (max-height: 500px) and (pointer: coarse) {
+  :root {
+    --bottom-nav-height: calc(max(48px, 3rem) + 8px);
+    --page-bottom-padding: calc(80px + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    scroll-padding: calc(var(--topbar-h, 64px) + 8px) 0 var(--page-bottom-padding);
+  }
+  .topbar { z-index: 47; }
+  .topbar-inner {
+    grid-template-columns: 1fr auto; grid-template-areas: "brand home"; padding-block: 8px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .main-nav {
+    position: fixed; inset: auto 0 0; justify-self: stretch; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-radius: 0; padding: 4px max(8px, env(safe-area-inset-right, 0px))
+      calc(4px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    box-shadow: 0 -2px 10px rgba(5, 20, 45, .18);
+  }
+  .nav-link {
+    flex-direction: column; gap: 2px; min-height: max(48px, 3rem); padding: 4px 2px;
+    font-size: .8rem; line-height: 1.2; text-align: center; overflow-wrap: anywhere;
+  }
+  .nav-link:focus-visible { outline-color: #fff; outline-offset: -3px; }
+  .topbar-right { position: relative; }
+  .topbar-right .menu-wrap { position: static; }
+  .topbar-right .menu {
+    width: min(300px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    max-height: calc(100dvh - var(--topbar-h, 64px) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px) - 8px);
+  }
+  #app {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .sheet {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .ai-fab { padding: 0; width: 52px; }
+  .ai-fab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .toast { bottom: calc(80px + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)); }
 }
 .ai-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px 14px; border-bottom: 1px solid var(--border); flex: none; }
 .ai-head h2 { flex: 1; font-family: var(--font-display); font-size: 1.15rem; }

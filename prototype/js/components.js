@@ -89,7 +89,7 @@ const HOME_MENU = [
   { key: 'map', label: 'Campus Map', sub: 'Explore by building', icon: 'map', route: 'map' },
   { key: 'list', label: 'Study Spots', sub: 'Browse every spot', icon: 'list', route: 'list' },
   { key: 'favorites', label: 'Favorites', sub: 'Your saved study spots', icon: 'star', route: 'favorites' },
-  { key: 'add', label: 'Add a Spot', sub: 'Share a spot you love', icon: 'plus', route: 'add' },
+  { key: 'add', label: 'Add a Spot', sub: 'Save a spot you love', adminSub: 'Share a spot you love', icon: 'plus', route: 'add' },
   { key: 'reset', label: 'Start Over', sub: 'Clear all filters', icon: 'refresh', route: 'start', clear: true, divider: true },
   // Only shown to the team admin account (Store.isAdmin(), from the database). The page and its
   // data are protected separately, so hiding this item is not the only thing keeping people out.
@@ -104,11 +104,12 @@ function menuItem({ label, sub, ic, attrs = '', current = false, divider = false
     </button>`;
 }
 
-/** Keep --topbar-h in step with the bar's real height (the Home page uses it to fill the screen). */
+/** Keep fixed controls and scroll targets clear of the sticky header. */
 function syncTopbarHeight() { document.documentElement.style.setProperty('--topbar-h', $('#topbar').offsetHeight + 'px'); }
 window.addEventListener('resize', syncTopbarHeight);
 
 function renderTopBar(pageKey) {
+  const isAdmin = Store.isAdmin();
   const link = (route, label, ic) => {
     const cur = pageKey === route;
     return `<a href="#${route}" class="nav-link${cur ? ' is-current' : ''}"${cur ? ' aria-current="page"' : ''}>${icon(ic)}<span>${label}</span></a>`;
@@ -127,8 +128,8 @@ function renderTopBar(pageKey) {
         <div class="menu-wrap">
           <button id="home-btn" class="bar-btn menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="home-menu" aria-label="Menu">${icon('menu')}</button>
           <div id="home-menu" class="menu" role="menu" aria-label="Menu" hidden>
-            ${HOME_MENU.filter((m) => !m.adminOnly || Store.isAdmin()).map((m) => menuItem({
-              label: m.label, sub: m.sub, ic: m.icon, divider: m.divider,
+            ${HOME_MENU.filter((m) => !m.adminOnly || isAdmin).map((m) => menuItem({
+              label: m.label, sub: isAdmin && m.adminSub ? m.adminSub : m.sub, ic: m.icon, divider: m.divider,
               current: pageKey === m.key,
               attrs: `data-menu-route="${m.route}"${m.clear ? ' data-menu-clear' : ''}`,
             })).join('')}
@@ -192,7 +193,7 @@ function noResults(opts = {}) {
     <p>Try a different combination, or let us pick a spot for you.</p>
     <div class="empty-actions">
       ${opts.noPanel ? '' : `<button type="button" class="btn btn-primary" data-open-filters>${icon('filter')}Change filters</button>`}
-      <button type="button" class="btn btn-secondary" data-random-spot>${icon('shuffle')}Pick a random spot</button>
+      <button type="button" class="btn ${opts.primaryRandom ? 'btn-primary' : 'btn-secondary'}" data-random-spot>${icon('shuffle')}Pick a random spot</button>
       <button type="button" class="link-btn" data-clear-filters>Clear all filters</button>
     </div>
   </div>`;
