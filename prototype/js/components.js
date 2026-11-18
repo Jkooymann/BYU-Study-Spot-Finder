@@ -464,7 +464,10 @@ const FilterPanel = {
   },
   handleChange(e) {
     const t = e.target;
-    if (t.matches('[data-fp-feature]')) this.draft.features[t.dataset.fpFeature] = t.checked;
+    if (t.matches('[data-fp-feature]')) {
+      this.draft.features[t.dataset.fpFeature] = t.checked;
+      if (t.checked && typeof SearchTracker !== 'undefined') SearchTracker.featureSelected(); // OKR 2: a search starts
+    }
     if (t.matches('[data-fp-building]')) this.draft.building = t.value;
     this.updateCount();
   },

@@ -272,7 +272,12 @@ document.addEventListener('click', (e) => {
 
   // Open spot details
   const open = t.closest('[data-open-spot]');
-  if (open) { App.go('spot-' + open.dataset.openSpot); return; }
+  if (open) {
+    // OKR 2: opening a spot from a card or marker ends a search (not from the Favorites list).
+    if (typeof SearchTracker !== 'undefined' && !open.closest('.fav-list')) SearchTracker.spotSelected();
+    App.go('spot-' + open.dataset.openSpot);
+    return;
+  }
 
   // Back to map: step back through history when we came from the map.
   const backMap = t.closest('[data-back-map]');
@@ -314,6 +319,7 @@ document.addEventListener('click', (e) => {
     if (sel.has(k)) sel.delete(k);
     else {
       sel.add(k);
+      if (typeof SearchTracker !== 'undefined') SearchTracker.featureSelected(); // OKR 2: a search starts
       // Indoors and Outdoors are one choice: picking one un-picks the other.
       if (k === 'indoors') sel.delete('outdoors');
       if (k === 'outdoors') sel.delete('indoors');

@@ -10,6 +10,7 @@ Time is controlled with Playwright's fake clock.
 import json, os
 from datetime import datetime, timezone
 from playwright.sync_api import sync_playwright
+from sample_spots import use_sample_spots
 
 BASE_URL = os.environ.get('TEST_BASE_URL', 'http://127.0.0.1:8000')
 
@@ -40,7 +41,16 @@ Object.defineProperty(Document.prototype, 'hidden', { get() { return window.__vi
 
 STATS = {'sessions_counted': 12, 'sessions_under_10': 10, 'percent_under_10': 83.3, 'target_percent': 80.0,
          'users_counted': 5, 'first_sessions': 5, 'open_sessions': 1, 'median_minutes': 4.2}
+# OKR 2-4 numbers as the database functions would return them (shape from *_okr_2_3_4.sql).
+STATS2 = {'users_counted': 8, 'users_within_5': 5, 'percent_within_5': 62.5, 'target_percent': 50.0, 'users_not_found': 3,
+          'users_in_progress': 1, 'searches_total': 14, 'searches_within_5': 9, 'median_minutes': 2.3, 'tracking_since': '2026-11-19T00:00:00Z'}
+STATS3 = {'users_counted': 10, 'users_with_favorite': 7, 'percent_with_favorite': 70.0, 'target_percent': 80.0,
+          'favorites_total': 19, 'median_favorites': 2.0}
+STATS4 = {'users_counted': 7, 'users_outside': 3, 'percent_outside': 42.9, 'target_percent': 30.0,
+          'users_library_only': 4, 'favorites_in_library': 12, 'favorites_outside': 7}
+OTHER = {'okr2_stats': STATS2, 'okr3_stats': STATS3, 'okr4_stats': STATS4}
 fake = {'stats': 'ok', 'stats_value': STATS}
+searches = {'n': 0}
 calls = []     # (function, user, body)
 held = []      # okr1_stats requests waiting to be answered
 sessions = {'n': 0}
@@ -58,6 +68,15 @@ def rpc(route):
         if fake['stats'] == 'hold': return held.append(route)
         if fake['stats'] == 'error': return reply(500, {'code': 'XX000', 'message': 'boom: internal detail'})
         return reply(200, [fake['stats_value']])
+    if name in OTHER:
+        if user != 'jason': return reply(403, {'code': '42501', 'message': 'Only the team admin account can see OKR numbers.'})
+        return reply(200, [OTHER[name]])
+    if name == 'okr_start_search':
+        if not user or user == 'jason': return reply(200, None)
+        searches['n'] += 1
+        return reply(200, f'search-{searches["n"]}')
+    if name == 'okr_spot_found':
+        return reply(200, bool(user))
     if name == 'okr_start_session':
         if not user or user == 'jason': return reply(200, None)   # the database never records the admin
         sessions['n'] += 1
@@ -73,6 +92,7 @@ with sync_playwright() as p:
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.add_init_script(VISIBILITY)
     page.route('**/js/db.js*', lambda r: r.fulfill(content_type='application/javascript', body=FAKE_DB))
+    use_sample_spots(page)
     page.route('**/rest/v1/rpc/**', rpc)
     page.route(lambda u: not u.startswith(BASE_URL) and '/rest/v1/rpc/' not in u, lambda r: r.abort())
     page.clock.install(time=datetime(2026, 11, 18, 9, 0, tzinfo=timezone.utc))
@@ -86,7 +106,7 @@ with sync_playwright() as p:
     def menu_labels():
         page.click('#home-btn'); labels = page.locator('#home-menu .menu-item-label').all_inner_texts(); page.click('#home-btn')
         return labels
-    def stats_calls(): return [c for c in calls if c[0] == 'okr1_stats']
+    def stats_calls(fn='okr1_stats'): return [c for c in calls if c[0] == fn]
     def text(sel): return page.locator(sel).inner_text()
 
     # ---------------- Menu + page protection ----------------
@@ -96,54 +116,81 @@ with sync_playwright() as p:
         calls.clear()
         page.goto(BASE_URL + '/#okr'); page.wait_for_selector('.empty-title')
         assert 'for the team admin' in text('.empty-title'), who
-        assert page.locator('.okr1-panel, .okr-card').count() == 0, who
-        assert not stats_calls(), (who, calls)                     # page never asks for the numbers
+        assert page.locator('.okr-panel, .okr-card').count() == 0, who
+        assert not [c for c in calls if c[0].endswith('_stats')], (who, calls)   # page never asks for the numbers
         assert ('Log in' in text('#app')) == (who is None), who
         # Even if someone forces the request, the database refuses (fake follows the migration).
-        res = page.evaluate("OKRApi.stats().then(() => 'got numbers', (e) => e.notAllowed ? 'refused' : 'other error')")
-        assert res == 'refused', (who, res)
+        for fn in ['okr1_stats', 'okr2_stats', 'okr3_stats', 'okr4_stats']:
+            res = page.evaluate(f"OKRApi.stats('{fn}').then(() => 'got numbers', (e) => e.notAllowed ? 'refused' : 'other error')")
+            assert res == 'refused', (who, fn, res)
 
     as_user('jason@byu.edu')
     labels = menu_labels()
     assert labels[-1] == 'OKR Trackers', labels
     page.click('#home-btn'); page.locator('[data-menu-route="okr"]').click()
-    page.wait_for_url('**/#okr'); page.wait_for_selector('.okr1-num')
-    assert text('.okr1-num') == '83.3%' and 'Meeting target' in text('.okr1-badge')
-    assert '10 of 12' in text('.okr1-facts') and 'Updated' in text('.okr1-updated')
-    assert page.locator('.okr-grid > .okr-card').count() == 1
+    page.wait_for_url('**/#okr'); page.wait_for_selector('#okr-tracker-okr1 .okr-num')
+    assert text('#okr-tracker-okr1 .okr-num') == '83.3%' and 'Meeting target' in text('#okr-tracker-okr1 .okr-badge')
+    assert '10 of 12' in text('#okr-tracker-okr1 .okr-facts') and 'Updated' in text('#okr-tracker-okr1 .okr-updated')
+    # All four trackers, in order, same design
+    assert page.locator('.okr-grid > .okr-card').count() == 4
+    assert page.locator('.okr-card h2').all_inner_texts() == ['OKR 1: Short sessions', 'OKR 2: Find a spot fast',
+                                                              'OKR 3: Users with a favorite', 'OKR 4: Favorites beyond the library']
+    for oid, num, badge, fact in [('okr2', '62.5%', 'Meeting target (50%)', '5 of 8'), ('okr3', '70.0%', 'Below target (80%)', '7 of 10'),
+                                  ('okr4', '42.9%', 'Meeting target (30%)', '3 of 7')]:
+        card = f'#okr-tracker-{oid}'; page.wait_for_selector(card + ' .okr-num')
+        assert text(card + ' .okr-num') == num and badge in text(card + ' .okr-badge'), (oid, text(card))
+        assert fact in text(card + ' .okr-facts') and 'Updated' in text(card + ' .okr-updated'), oid
+        assert page.locator(card + ' .okr-bar .okr-target').count() == 1 and page.locator(card + ' .okr-facts > div').count() == 4
+    assert '3 / 1' in text('#okr-tracker-okr2 .okr-facts') and '9 of 14' in text('#okr-tracker-okr2 .okr-facts')
+    assert 'Library-only users' in text('#okr-tracker-okr4') and '12' in text('#okr-tracker-okr4 .okr-facts')
+    # Each card's Refresh reloads its own numbers
+    for oid in ['okr2', 'okr3', 'okr4']:
+        pct = {'okr2': 'percent_within_5', 'okr3': 'percent_with_favorite', 'okr4': 'percent_outside'}[oid]
+        OTHER[f'{oid}_stats'] = {**OTHER[f'{oid}_stats'], pct: 12.5}
+        n = len(stats_calls(f'{oid}_stats'))
+        page.click(f'#okr-tracker-{oid} .okr-refresh')
+        page.wait_for_function(f'document.querySelector("#okr-tracker-{oid} .okr-num").textContent === "12.5%"')
+        assert len(stats_calls(f'{oid}_stats')) == n + 1 and 'Below target' in text(f'#okr-tracker-{oid} .okr-badge'), oid
+    # Empty state (nothing to count yet) for a new tracker
+    OTHER['okr2_stats'] = {**STATS2, 'users_counted': 0, 'users_within_5': 0, 'percent_within_5': None, 'users_in_progress': 2}
+    page.click('#okr-tracker-okr2 .okr-refresh'); page.wait_for_function('document.querySelector("#okr-tracker-okr2 .okr-num").textContent === "—"')
+    assert 'No finished searches yet' in text('#okr-tracker-okr2') and '2 in progress' in text('#okr-tracker-okr2')
     assert 'OKR Trackers' in page.title()
 
     # ---------------- Refresh button ----------------
     fake['stats'] = 'hold'; n = len(stats_calls())
-    page.click('.okr1-refresh')
-    page.wait_for_function('document.querySelector(".okr1-refresh").disabled')
-    assert text('.okr1-refresh') == 'Refreshing…' and page.get_attribute('.okr1-body', 'aria-busy') == 'true'
-    page.click('.okr1-refresh', force=True)                       # disabled: no second request
+    page.click('#okr-tracker-okr1 .okr-refresh')
+    page.wait_for_function('document.querySelector("#okr-tracker-okr1 .okr-refresh").disabled')
+    assert text('#okr-tracker-okr1 .okr-refresh') == 'Refreshing…' and page.get_attribute('#okr-tracker-okr1 .okr-body', 'aria-busy') == 'true'
+    page.click('#okr-tracker-okr1 .okr-refresh', force=True)                       # disabled: no second request
     assert len(stats_calls()) == n + 1, stats_calls()
     fake['stats_value'] = {**STATS, 'percent_under_10': 70.0, 'sessions_under_10': 7, 'sessions_counted': 10}
     held.pop().fulfill(status=200, content_type='application/json', body=json.dumps([fake['stats_value']]))
-    page.wait_for_function('document.querySelector(".okr1-num").textContent === "70.0%"')
-    assert 'Below target' in text('.okr1-badge') and text('.okr1-refresh') == 'Refresh'
-    assert not page.locator('.okr1-refresh').is_disabled() and page.get_attribute('.okr1-body', 'aria-busy') == 'false'
+    page.wait_for_function('document.querySelector("#okr-tracker-okr1 .okr-num").textContent === "70.0%"')
+    assert 'Below target' in text('#okr-tracker-okr1 .okr-badge') and text('#okr-tracker-okr1 .okr-refresh') == 'Refresh'
+    assert not page.locator('#okr-tracker-okr1 .okr-refresh').is_disabled() and page.get_attribute('#okr-tracker-okr1 .okr-body', 'aria-busy') == 'false'
 
-    fake['stats'] = 'error'; page.click('.okr1-refresh'); page.wait_for_selector('.okr1-error')
-    assert 'Check your connection' in text('.okr1-error') and 'boom' not in text('#app'), text('.okr1-error')
-    assert text('.okr1-refresh') == 'Refresh' and not page.locator('.okr1-refresh').is_disabled()
-    fake['stats'] = 'ok'; page.click('.okr1-refresh'); page.wait_for_selector('.okr1-num')
-    assert text('.okr1-num') == '70.0%'
+    fake['stats'] = 'error'; page.click('#okr-tracker-okr1 .okr-refresh'); page.wait_for_selector('#okr-tracker-okr1 .okr-error')
+    assert 'Check your connection' in text('#okr-tracker-okr1 .okr-error') and 'boom' not in text('#app'), text('#okr-tracker-okr1 .okr-error')
+    assert text('#okr-tracker-okr1 .okr-refresh') == 'Refresh' and not page.locator('#okr-tracker-okr1 .okr-refresh').is_disabled()
+    fake['stats'] = 'ok'; page.click('#okr-tracker-okr1 .okr-refresh'); page.wait_for_selector('#okr-tracker-okr1 .okr-num')
+    assert text('#okr-tracker-okr1 .okr-num') == '70.0%'
 
     # Auto refresh every minute; leaving the page stops it.
-    n = len(stats_calls()); page.clock.run_for(61_000); page.wait_for_timeout(50)
-    assert len(stats_calls()) == n + 1
+    ns = [len(stats_calls(f'okr{i}_stats')) for i in range(1, 5)]; page.clock.run_for(61_000); page.wait_for_timeout(100)
+    assert [len(stats_calls(f'okr{i}_stats')) for i in range(1, 5)] == [x + 1 for x in ns]
     page.goto(BASE_URL + '/#favorites'); page.wait_for_selector('.page-hero h1')
-    n = len(stats_calls()); page.clock.run_for(180_000); page.wait_for_timeout(50)
-    assert len(stats_calls()) == n, 'timer kept running after leaving the page'
+    n = len([c for c in calls if c[0].endswith('_stats')]); page.clock.run_for(180_000); page.wait_for_timeout(50)
+    assert len([c for c in calls if c[0].endswith('_stats')]) == n, 'timer kept running after leaving the page'
 
     # The admin is not tracked
-    assert not [c for c in calls if c[0] in ('okr_start_session', 'okr_heartbeat')], calls
+    page.goto(BASE_URL + '/#start'); page.wait_for_selector('[data-start-chip]')
+    page.click('[data-start-chip="wifi"]'); page.click('#go-btn'); page.wait_for_selector('.spot-card')
+    page.locator('.spot-card').first.click(); page.wait_for_selector('#spot-dialog #sd-title'); page.wait_for_timeout(100)
+    assert not [c for c in calls if c[0] in ('okr_start_session', 'okr_heartbeat', 'okr_start_search', 'okr_spot_found')], calls
 
     # Mobile layout
-    page.set_viewport_size({'width': 390, 'height': 800}); page.goto(BASE_URL + '/#okr'); page.wait_for_selector('.okr1-num')
+    page.set_viewport_size({'width': 390, 'height': 800}); page.goto(BASE_URL + '/#okr'); page.wait_for_selector('#okr-tracker-okr1 .okr-num')
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     page.set_viewport_size({'width': 1280, 'height': 900})
 
@@ -222,9 +269,66 @@ with sync_playwright() as p:
     assert hb and hb[0][1] == 'alice', calls
     assert page.evaluate('SessionTracker.sessionId') is None
 
+    # ---------------- OKR 2: searches ----------------
+    as_user('alice@byu.edu', 'start'); calls.clear()
+    srch = lambda name: [c for c in calls if c[0] == name]
+    def settle(): page.wait_for_timeout(150)
+    def open_card():
+        page.wait_for_selector('.spot-card'); page.locator('.spot-card').first.click()
+        page.wait_for_selector('#spot-dialog #sd-title'); settle()
+    def close_card():
+        page.locator('[data-sd-close]').first.click(); page.wait_for_selector('#spot-dialog', state='hidden')
+    # Get Started choice starts a search; more choices don't start another; opening a card finds it.
+    page.click('[data-start-chip="wifi"]'); settle()
+    assert len(srch('okr_start_search')) == 1 and srch('okr_start_search')[0][1] == 'alice', calls
+    first = srch('okr_start_search')
+    page.click('[data-start-chip="outlets"]'); page.click('[data-start-chip="outlets"]'); settle()   # on, then off
+    assert len(srch('okr_start_search')) == 1
+    page.click('#go-btn'); open_card()
+    s1_ = f'search-{searches["n"]}'
+    assert srch('okr_spot_found') == [('okr_spot_found', 'alice', {'p_search_id': s1_})], calls
+    page.evaluate('SearchTracker.spotSelected()'); settle()   # a second card in the same search
+    assert len(srch('okr_spot_found')) == 1, 'a search is found only once'
+    close_card()
+    # Filter panel feature after a found search starts a new one; turning one OFF doesn't.
+    page.click('[data-open-filters]'); page.wait_for_selector('#filter-panel:not([hidden])')
+    page.locator('[data-fp-feature="quietZone"]').check(force=True); settle()
+    assert len(srch('okr_start_search')) == 2
+    page.locator('[data-fp-feature="quietZone"]').uncheck(force=True); page.locator('[data-fp-feature="outlets"]').check(force=True); settle()
+    assert len(srch('okr_start_search')) == 2, 'started a second search while one was open'
+    page.keyboard.press('Escape')
+    # No spot within 5 minutes: the next feature starts a new search (the old one stays "not found").
+    page.clock.run_for(5 * 60_000 + 1000)
+    page.click('[data-open-filters]'); page.wait_for_selector('#filter-panel:not([hidden])')
+    page.locator('[data-fp-feature="tables"]').check(force=True); settle()
+    assert len(srch('okr_start_search')) == 3 and len(srch('okr_spot_found')) == 1
+    page.keyboard.press('Escape')
+    # Opening a spot from the Favorites list isn't finding one.
+    page.evaluate('''document.querySelector('#app').insertAdjacentHTML('beforeend',
+        '<ul class="fav-list"><li><button type="button" id="test-fav" data-open-spot="s1">x</button></li></ul>')''')
+    page.click('#test-fav'); page.wait_for_selector('#spot-dialog #sd-title'); settle()
+    assert len(srch('okr_spot_found')) == 1, 'favorites click counted'
+    close_card()
+    # Found after 5 minutes still records the time (the database counts it as not within 5).
+    page.clock.run_for(6 * 60_000); page.goto(BASE_URL + '/#list'); open_card()
+    assert srch('okr_spot_found')[-1][2] == {'p_search_id': f'search-{searches["n"]}'}
+    close_card()
+    # A reload keeps the open search.
+    page.goto(BASE_URL + '/#start'); page.wait_for_selector('[data-start-chip]')
+    page.click('[data-start-chip="quietZone"]'); settle(); open_id = f'search-{searches["n"]}'
+    page.reload(); page.wait_for_function('Store.sharedStatus() === "ok"'); page.goto(BASE_URL + '/#list'); open_card()
+    assert srch('okr_spot_found')[-1][2] == {'p_search_id': open_id}, calls
+    close_card()
+    # Logged out: nothing recorded.
+    as_user(None, 'start'); calls.clear()
+    page.click('[data-start-chip="wifi"]'); page.click('#go-btn'); open_card()
+    assert not srch('okr_start_search') and not srch('okr_spot_found'), calls
+
     assert not errors, errors
     print('PASS: OKR menu only for the admin, #okr blocked for logged-out and students (no stats request, forced request refused), '
           'admin sees OKR 1 card; Refresh shows loading, ignores double clicks, shows new numbers, friendly error and recovers; '
           'auto refresh stops when leaving; admin not tracked; active time stops 2 min after activity, new session after the cutoff, '
-          'keys/scroll/taps count, hidden time not counted, frozen-page time not counted, reload keeps session, logout sends final total; no uncaught errors')
+          'keys/scroll/taps count, hidden time not counted, frozen-page time not counted, reload keeps session, logout sends final total; OKR 2-4 cards show their numbers, refresh on their own and show empty states; OKR 2 searches: start on Get Started or Filter panel features, '
+          'one open search at a time, found once on a spot card (not from Favorites), new search after 5 min, late finds recorded, kept across reload, '
+          'not for the admin or logged-out visitors; no uncaught errors')
     b.close()

@@ -110,28 +110,33 @@ locally; `PGPORT` etc. pick the server; it never touches the real project).
 ## OKR Trackers (team admin only)
 
 The team admin account (the one in `public.app_admin`, see above) gets an **OKR Trackers** item
-at the bottom of the ☰ menu. It opens `#okr`, which shows the OKR 1 tracker (share of sessions
-under 10 minutes) with a Refresh button. Anyone else who opens `#okr` sees only a "for the team
-admin" message, and the database function behind the numbers (`okr1_stats()`) refuses every
+at the bottom of the ☰ menu. It opens `#okr`, which shows four tracker cards, each with a
+Refresh button: OKR 1 (sessions under 10 minutes), OKR 2 (users who find a spot within 5 minutes
+of turning on a feature), OKR 3 (users with a favorite) and OKR 4 (users with a favorite outside
+the library). Anyone else who opens `#okr` sees only a "for the team
+admin" message, and the database functions behind the numbers (`okr1_stats()` … `okr4_stats()`) refuse every
 account except the admin, so the data stays private even if someone calls it directly.
 
 Sessions count **active time only**: the clock stops 2 minutes after the last click, tap, key
 press or scroll, and while the page is hidden; coming back later starts a new session. The admin
-account's own visits are never recorded or counted. Details, and how to add OKRs 2–4, are in
+account's own visits are never recorded or counted, and neither are the old demo accounts.
+OKR 2 records searches (feature turned on → spot card opened); OKRs 3 and 4 use saved favorites.
+Exact numerators, denominators and periods, and how to add a tracker, are in
 [`js/okr/README.md`](js/okr/README.md).
 
 ### Set it up (once)
 
-Run `supabase/migrations/20261118020000_okr_admin_only_and_active_time.sql` in Supabase →
-SQL Editor (after the private/shared spots migration). Every row of the checklist at the end
-should say `ok`.
+Run `supabase/migrations/20261118020000_okr_admin_only_and_active_time.sql`, then
+`supabase/migrations/20261119010000_okr_2_3_4.sql`, in Supabase → SQL Editor (after the
+private/shared spots migration). Every row of each checklist should say `ok`.
 
 ### Checking the rules
 
-`python3 supabase/tests/okr_admin_rls.py` (local Postgres, like the spot rules check) tries to
-read the numbers as a student and a logged-out visitor, record the admin, and fake active time.
+`python3 supabase/tests/okr_admin_rls.py` and `python3 supabase/tests/okr_234_rls.py` (local
+Postgres, like the spot rules check) try to read the numbers as a student and a logged-out
+visitor, record the admin, and fake activity, and check every OKR's numbers against known data.
 `python3 prototype/tests/okr_flow.py` checks the menu, the page guard, the Refresh button and
-the active-time rules with a fake clock.
+the active-time and search rules with a fake clock, and all four cards.
 
 ## AI recommendations (✨ Suggest spots)
 

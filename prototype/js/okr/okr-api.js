@@ -1,6 +1,6 @@
 /* =========================================================================
-   OKR 1: talks to the database functions in
-   supabase/migrations/20261116220000_okr1_session_tracking.sql.
+   OKR trackers: talks to the database functions in supabase/migrations/
+   *_okr1_session_tracking.sql, *_okr_admin_only_and_active_time.sql and *_okr_2_3_4.sql.
    Uses plain fetch (so a heartbeat can finish while the tab closes) with the
    logged-in person's access token, so the database itself decides who the
    student is. The browser never sends a student id it could fake.
@@ -49,10 +49,15 @@ const OKRApi = (() => {
         true = recorded, false = not this student's session (start a new one), null = logged out. */
     heartbeat: (sessionId, activeSeconds, opts = {}) =>
       rpc('okr_heartbeat', { p_session_id: sessionId, p_active_seconds: Math.round(activeSeconds) }, { ...opts, asUser: true }),
-    /** OKR 1 numbers. Only the admin account gets them; anyone else gets an error with notAllowed. */
-    stats: async () => {
-      const rows = await rpc('okr1_stats', {}, { asUser: true });
-      if (rows === null) throw Object.assign(new Error('okr1_stats: not logged in'), { notAllowed: true });
+    /** OKR 2: a feature was turned on with no search open. New search id, or null (not tracked). */
+    startSearch: () => rpc('okr_start_search', {}, { asUser: true }),
+    /** OKR 2: a spot card was opened during the search. */
+    spotFound: (searchId) => rpc('okr_spot_found', { p_search_id: searchId }, { asUser: true }),
+    /** A tracker's numbers (okr1_stats … okr4_stats). Only the admin account gets them;
+        anyone else gets an error with notAllowed. */
+    stats: async (fn = 'okr1_stats') => {
+      const rows = await rpc(fn, {}, { asUser: true });
+      if (rows === null) throw Object.assign(new Error(`${fn}: not logged in`), { notAllowed: true });
       return rows[0];
     },
   };
