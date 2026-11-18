@@ -38,6 +38,16 @@ with sync_playwright() as p:
  assert page.locator('.bldg.is-target').get_attribute('data-building')=='hbll'
  page.evaluate("() => {const f=Store.emptyFilters(); f.features.quietZone=true; Store.setFilters(f); App.go('map');}")
  page.wait_for_selector('.bldg.is-match');assert page.locator('.bldg.is-dim').count()>0
+ # "Show on map" with filters on: the selected building stands out, other matching buildings stay
+ # highlighted but softer (thinner border, paler fill); without a selection they look as before.
+ shape=lambda sel: page.evaluate("s => { const e = getComputedStyle(document.querySelector(s + ' .bldg-shape')); return [parseFloat(e.strokeWidth), e.fill]; }", sel)
+ plain_match=shape('.bldg.is-match')
+ assert page.locator('.campus-map.has-target').count()==0 and plain_match[0]==3, plain_match
+ page.evaluate("App.go('map-spot-s1')");page.wait_for_selector('.campus-map.has-target .bldg.is-target')
+ target=shape('.bldg.is-target'); other=shape('.bldg.is-match:not(.is-target)')
+ assert page.locator('.map-pin').count()==1 and target[0]==4 and other[0]==1.5, (target, other)
+ assert other[1]!=target[1] and other[1]!=plain_match[1], (target, other, plain_match)
+ page.mouse.move(0,0)
  # Every building retains the keyboard handoff, including empty buildings.
  for building_id in page.evaluate('BUILDINGS.map(b => b.id)'):
   page.evaluate("App.go('map')");page.wait_for_selector('.campus-map')

@@ -800,6 +800,13 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .campus-map .bldg.is-match .bldg-shape, .campus-map .bldg.is-target .bldg-shape { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 3; }
 .campus-map .bldg-badge circle { stroke: var(--campus-active); }
 .campus-map .bldg.is-dim { opacity: .5; }
+/* "Show on map": the selected spot's building stands out (full yellow, thick border, glow, pin);
+   other buildings with matching spots stay visible with a softer yellow and a thin border. */
+.campus-map.has-target .bldg.is-match:not(.is-target) .bldg-shape { fill: color-mix(in srgb, var(--accent-soft) 50%, var(--campus-active)); stroke: color-mix(in srgb, var(--accent) 65%, var(--campus-outline)); stroke-width: 1.5; }
+.campus-map.has-target .bldg.is-match:not(.is-target) .bldg-shadow { opacity: .15; }
+.campus-map.has-target .bldg.is-match:not(.is-target) .bldg-badge circle { fill: color-mix(in srgb, var(--accent) 55%, var(--campus-active)); }
+.campus-map.has-target .bldg.is-target .bldg-shape { stroke-width: 4; }
+.campus-map.has-target .bldg.is-match:not(.is-target):is(:hover, :focus-visible) .bldg-shape { fill: var(--primary-soft); stroke: var(--primary); stroke-width: 3; }
 :root[data-theme="dark"] .campus-map {
   --campus-ground: #293638; --campus-lawn: #304b36; --campus-ink: #a5bca5;
   --campus-building: #3b4140; --campus-building-edge: #67706b;

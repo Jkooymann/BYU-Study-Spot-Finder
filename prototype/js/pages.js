@@ -109,7 +109,7 @@ Pages.map = (spotId) => {
     ${active && !anyMatch ? noResults() : ''}
     ${selected}
     <div class="map-wrap" tabindex="0" role="region" aria-label="Scrollable campus map" aria-describedby="campus-map-help">
-      <svg class="campus-map" viewBox="0 0 ${CAMPUS.w} ${CAMPUS.h}" role="group" aria-label="Map of BYU campus buildings with study spots">
+      <svg class="campus-map${target ? ' has-target' : ''}" viewBox="0 0 ${CAMPUS.w} ${CAMPUS.h}" role="group" aria-label="Map of BYU campus buildings with study spots">
         <rect class="map-ground" x="0" y="0" width="${CAMPUS.w}" height="${CAMPUS.h}" rx="18"/>
         ${campusBackdrop()}
         <g class="map-compass" transform="translate(${CAMPUS.w - 30} ${CAMPUS.h - 30}) scale(0.8)"><circle r="16"/><path d="M0 -10 5 5 0 2-5 5z"/><text y="-21" text-anchor="middle">N</text></g>
