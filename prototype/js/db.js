@@ -155,6 +155,44 @@ const DB = (() => {
     return toSpot(saved.data);
   }
 
+  /**
+   * Team admin only: save changes to a shared spot (same fields as Add a Spot).
+   * The database function admin_update_spot (supabase/migrations/*_admin_edit_spots.sql)
+   * refuses anyone else. Returns the updated spot.
+   */
+  async function updateSpot(studySpotId, spot) {
+    const f = spot.features;
+    if (f.outdoors && (!spot.campusPosition || ![spot.campusPosition.x, spot.campusPosition.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100))) {
+      throw new Error('Place an outdoor pin on the campus map before saving.');
+    }
+    const building = buildingById(spot.building);
+    if ((!f.outdoors || spot.building) && (!building || building.dbId == null)) {
+      throw new Error(`${building ? building.short : 'This building'} isn't in the database yet. Ask the project owner to apply the latest building migrations in Supabase, then reload.`);
+    }
+    const noise = f.quietZone && !f.talkingAllowed ? 'Quiet' : f.talkingAllowed && !f.quietZone ? 'Moderate' : null;
+    const round = (n) => Math.round(n * 100) / 100;
+    const { error } = await client.rpc('admin_update_spot', {
+      p_study_spot_id: studySpotId,
+      p_spot_name: spot.name,
+      p_building_id: building ? building.dbId : null,
+      p_floor_number: f.outdoors ? null : floorToDatabase(spot.floor),
+      p_description: spot.description || null,
+      p_is_indoors: !f.outdoors,
+      p_max_group_size: GROUP_TO_MAX[spot.groupSize] || 1,
+      p_noise_level: noise,
+      p_typical_busyness_level: BUSY_TO_DB[spot.busyness] || 'Moderate',
+      p_floor_plan_x_percent: f.outdoors ? null : round(spot.position.x),
+      p_floor_plan_y_percent: f.outdoors ? null : round(spot.position.y),
+      p_campus_map_x_percent: f.outdoors ? round(spot.campusPosition.x) : null,
+      p_campus_map_y_percent: f.outdoors ? round(spot.campusPosition.y) : null,
+      p_amenity_ids: Object.keys(FEATURE_AMENITY_IDS).filter((k) => f[k]).map((k) => FEATURE_AMENITY_IDS[k]),
+    });
+    if (error) throw error;
+    const saved = await client.from('study_spot').select(SPOT_COLUMNS).eq('study_spot_id', studySpotId).single();
+    if (saved.error) throw saved.error;
+    return toSpot(saved.data);
+  }
+
   async function deleteSpot(studySpotId) {
     const { error } = await client.from('study_spot').delete()
       .eq('study_spot_id', studySpotId).eq('is_sample_spot', false);
@@ -285,7 +323,7 @@ const DB = (() => {
   return {
     accessToken,
     ready: !!client, students, favoriteSpotIds, addFavorite, removeFavorite,
-    buildings, studentSpots, addSpot, deleteSpot,
+    buildings, studentSpots, addSpot, updateSpot, deleteSpot,
     signUp, signIn, signOut, currentStudent, recommendSpots,
     authLink, finishAuthLink, requestPasswordReset, updatePassword,
   };

@@ -62,6 +62,7 @@ const ICONS = {
   pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   refresh: '<path d="M3 12a9 9 0 0 1 15.5-6.3L21 8M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16M3 21v-5h5"/>',
   shuffle: '<path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
@@ -511,6 +512,7 @@ const SpotDialog = {
         <div class="sd-actions">
           ${favButton(s.id, true)}
           <a class="btn btn-secondary" href="#map-spot-${s.id}">${icon('map')}Show on map</a>
+          ${Store.canEditSpot(s) ? `<a class="btn btn-secondary" href="#edit-${s.id}" data-sd-edit="${s.id}">${icon('edit')}Edit spot</a>` : ''}
           ${!s.features.outdoors || (!hasCampusPin(s) && b && s.floor != null) ? `<a class="btn btn-ghost" href="#building-${s.building}-f${s.floor}">${icon('layers')}${s.features.outdoors ? 'Original floor pin' : 'Floor plan'}</a>` : ''}
         </div>
         ${s.description ? `<p class="sd-desc">${esc(s.description)}</p>` : ''}
