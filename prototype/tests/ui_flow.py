@@ -70,7 +70,11 @@ with sync_playwright() as p:
 
     # Get Started: 9 equal options incl. WiFi; Indoors and Outdoors are one choice.
     assert page.locator('#go-btn').inner_text() == 'Browse all spots'
-    assert page.locator('#go-btn').evaluate("el => getComputedStyle(el).backgroundColor") == page.locator('#random-btn').evaluate("el => getComputedStyle(el).backgroundColor")
+    browse = page.locator('#go-btn')
+    random_spot = page.locator('#random-btn')
+    background = "el => getComputedStyle(el).backgroundColor"
+    primary_color = browse.evaluate(background)
+    assert random_spot.evaluate(background) == primary_color
     chips = page.locator('[data-start-chip]')
     assert chips.count() == 9
     assert page.locator('[data-start-chip="talkingAllowed"]').inner_text().strip() == 'Talking allowed'
@@ -79,7 +83,9 @@ with sync_playwright() as p:
     page.click('[data-start-chip="indoors"]'); page.click('[data-start-chip="outdoors"]')
     assert page.locator('[data-start-chip="indoors"]').get_attribute('aria-pressed') == 'false'
     page.click('[data-start-chip="wifi"]')
-    assert 'matching spot' in page.locator('#go-btn').inner_text()
+    assert 'matching spot' in browse.inner_text()
+    assert browse.evaluate(background) == primary_color
+    assert random_spot.evaluate(background) != primary_color and random_spot.is_enabled()
     page.click('#go-btn'); page.wait_for_url('**/#list')
     page.wait_for_selector('.spot-card'); c = page.locator('.spot-card').count(); assert c == 3, (c, page.url, page.locator('.active-filters').inner_text())  # outdoor spots with WiFi
     assert sorted(page.locator('.active-filters .chip').all_inner_texts()) == ['Outdoors', 'WiFi']

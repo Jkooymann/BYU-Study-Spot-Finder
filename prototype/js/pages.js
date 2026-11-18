@@ -28,16 +28,18 @@ Pages.start = () => {
   const showLabel = sel.size ? `Show ${plural(matches, 'matching spot')}` : 'Browse all spots';
   return `<section class="page start">
     ${pageHeader({ title: 'What do you want in your study spot?', sub: 'Pick some filters to get started.', display: true })}
-    <div class="start-chips" role="group" aria-label="What you want in a study spot">
-      ${START_CHIPS.map((c) => `<button type="button" class="chip chip-toggle chip-lg${sel.has(c.key) ? ' is-on' : ''}" aria-pressed="${sel.has(c.key)}" data-start-chip="${c.key}">
-        ${icon(c.icon)}<span>${c.label}</span><span class="chip-check">${icon('check')}</span></button>`).join('')}
+    <div class="start-content">
+      <div class="start-chips" role="group" aria-label="What you want in a study spot">
+        ${START_CHIPS.map((c) => `<button type="button" class="chip chip-toggle chip-lg${sel.has(c.key) ? ' is-on' : ''}" aria-pressed="${sel.has(c.key)}" data-start-chip="${c.key}">
+          ${icon(c.icon)}<span>${c.label}</span><span class="chip-check">${icon('check')}</span></button>`).join('')}
+      </div>
+      ${sel.size && !matches ? noResults({ noPanel: true, title: 'No spots have all of these yet', primaryRandom: true }) : `
+      <div class="start-actions">
+        <button type="button" class="btn btn-primary btn-lg" id="go-btn">${icon('search')}${showLabel}</button>
+        <span class="start-or" aria-hidden="true">or</span>
+        <button type="button" class="btn btn-primary btn-lg" id="random-btn">${icon('shuffle')}Pick a random spot</button>
+      </div>`}
     </div>
-    ${sel.size && !matches ? noResults({ noPanel: true, title: 'No spots have all of these yet', primaryRandom: true }) : `
-    <div class="start-actions">
-      <button type="button" class="btn btn-primary btn-lg" id="go-btn">${icon('search')}${showLabel}</button>
-      <span class="start-or" aria-hidden="true">or</span>
-      <button type="button" class="btn btn-primary btn-lg" id="random-btn">${icon('shuffle')}Pick a random spot</button>
-    </div>`}
   </section>`;
 };
 

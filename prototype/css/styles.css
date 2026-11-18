@@ -255,14 +255,15 @@ button { cursor: pointer; }
 .active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 /* ---------------- Get Started ---------------- */
-.start { max-width: 920px; margin: 0 auto; gap: clamp(16px, 3vh, 24px); }
+.start { max-width: 960px; margin: 0 auto; gap: 16px; }
 #app:has(> .start) { padding-bottom: var(--page-bottom-padding, 24px); }
 .start > .page-hero { padding-block: clamp(20px, 4vh, 36px); }
 .start .display { font-size: clamp(1.9rem, 1rem + 2.5vw, 3rem); line-height: 1.08; letter-spacing: -.025em; }
 .start .hero-sub { font-size: clamp(1rem, .9rem + .4vw, 1.2rem); }
+.start-content { display: flex; flex-direction: column; gap: clamp(16px, 3dvh, 32px); }
 .start-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .chip-lg {
-  position: relative; border-radius: var(--r); min-height: 56px; padding: 8px 12px; justify-content: flex-start; text-align: left;
+  position: relative; border-radius: var(--r); min-height: 64px; padding: 10px 12px; justify-content: flex-start; text-align: left;
   font-size: .98rem; line-height: 1.25; box-shadow: var(--shadow);
 }
 .chip-lg > span:first-of-type { overflow-wrap: anywhere; }
@@ -276,17 +277,35 @@ button { cursor: pointer; }
   .chip-lg { padding-inline: 8px; }
   .chip-check { width: 20px; height: 20px; }
 }
-/* Give both Home actions the same emphasis. */
+/* Home actions start equally prominent. Selected preferences emphasize Browse. */
 .start-actions {
   display: grid; gap: 10px; align-items: center;
   padding: 14px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
 }
 .start .btn-primary { background: #1262b2; color: #fff; white-space: normal; text-align: center; }
 .start .btn-primary:hover:not(:disabled) { background: #0d4e91; }
+.start:has(.chip-lg.is-on) :is(#random-btn, [data-random-spot]) {
+  background: var(--primary-soft); color: var(--primary); border-color: var(--border);
+}
+.start:has(.chip-lg.is-on) :is(#random-btn, [data-random-spot]):hover {
+  background: var(--surface-2); border-color: var(--primary);
+}
 .start-or { justify-self: center; font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 @media (min-width: 640px) {
   .start-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .start-actions { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding: 16px; }
+}
+
+@media (min-width: 960px) {
+  #app:has(> .start) { --page-bottom-padding: 56px; }
+  .start { min-height: calc(100dvh - var(--topbar-h, 68px) - var(--page-bottom-padding)); }
+  .start-content { flex: 1; justify-content: center; }
+  .start-chips { gap: clamp(12px, 1.5dvh, 18px); grid-auto-rows: 1fr; }
+  .start .chip-lg {
+    min-height: clamp(72px, 12.5dvh, 136px);
+    gap: 12px; padding-inline: 20px;
+    font-size: clamp(1rem, .8rem + .5vw, 1.18rem);
+  }
 }
 
 /* ---------------- Toolbar & group size ---------------- */
