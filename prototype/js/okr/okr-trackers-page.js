@@ -72,6 +72,10 @@ const OKRTrackersPage = (() => {
       empty: () => 'No student has a favorite yet, so there is no one to count.',
     },
   ];
+  /* The team's hand-coded admin portal (admin-portal/ on the admin-portal branch).
+     Placeholder: it only works while the portal is running on your own computer
+     (node index.js). Change this to the real address once the portal is deployed. */
+  const ADMIN_PORTAL_URL = 'http://localhost:3000';
   let mounted = [];
 
   /** Page HTML. Non-admins (and logged-out visitors) get a message and no tracker at all. */
@@ -93,6 +97,9 @@ const OKRTrackersPage = (() => {
       ${pageHeader({ eyebrow: 'Team admin', title: 'OKR Trackers', sub: 'How the site is doing on the team’s goals. Your own visits as the admin are never counted.' })}
       <div class="okr-grid">
         ${TRACKERS.map((t) => `<article class="okr-card" id="okr-tracker-${t.id}"></article>`).join('')}
+      </div>
+      <div class="okr-admin-portal">
+        <a class="btn btn-primary" href="${ADMIN_PORTAL_URL}" target="_blank" rel="noopener">${icon('users2')} Admin Portal</a>
       </div>
     </section>`;
   }
