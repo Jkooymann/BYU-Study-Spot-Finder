@@ -841,3 +841,5 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .okr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
 .okr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; box-shadow: var(--shadow); min-width: 0; }
 .okr-checking { color: var(--muted); }
+/* Admin Portal button under the OKR cards. */
+.okr-admin-portal { margin-top: 24px; display: flex; }
