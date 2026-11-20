@@ -48,15 +48,45 @@ const AccountSession = {
     App.loadShared();
   },
 
+  /**
+   * Log out and leave nothing of the session behind in this browser:
+   *   1. OKR trackers send their last numbers first (while the login still works).
+   *   2. Supabase ends the login (its saved login in localStorage, "sb-…-auth-token", is removed).
+   *   3. clearBrowserSession(): every cookie this site can see, sessionStorage, and the
+   *      site's own localStorage (filters, sort order, device-only spots/favorites).
+   * Favorites, added spots and OKR numbers live in the database, so they are kept.
+   */
   async signOut() {
     // OKR 1: send the session's last active time while the login still works.
     if (typeof SessionTracker !== 'undefined') { try { await SessionTracker.flush(); } catch (_) { /* not important */ } }
     try { await DB.signOut(); } catch (e) { console.error('Sign out failed', e); }
+    clearBrowserSession();
     await App.loadShared();
     App.go('start');
     toast('You are logged out.');
   },
 };
+
+/** Remove cookies, sessionStorage and this site's localStorage (see AccountSession.signOut). */
+function clearBrowserSession() {
+  // Cookies: expire each one for this page's path and every parent path.
+  try {
+    const parts = location.pathname.split('/');
+    const paths = parts.map((_, i) => parts.slice(0, i + 1).join('/') || '/');
+    document.cookie.split(';').map((c) => c.split('=')[0].trim()).filter(Boolean).forEach((name) => {
+      paths.concat('/').forEach((path) => {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; path=${path}`;
+      });
+    });
+  } catch (e) { /* cookies blocked */ }
+  try { sessionStorage.clear(); } catch (e) { /* storage blocked */ }
+  // Supabase's saved login (normally already gone after signOut) and anything else from Supabase.
+  try { Object.keys(localStorage).filter((k) => k.startsWith('sb-')).forEach((k) => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ }
+  Store.clearDeviceData();
+  AccountSession.setRecovering(false);
+  if (typeof AddState !== 'undefined') AddState.reset();
+  if (typeof AdminUsers !== 'undefined') AdminUsers.reset();
+}
 
 const AccountAPI = {
   /**

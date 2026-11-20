@@ -252,12 +252,26 @@ const Store = (() => {
   const keyOf = (f) => JSON.stringify(normalize(f));
 
   /* ---------------- Small UI preferences ---------------- */
+  /**
+   * Logging out: forget everything this site saved in this browser (filters, sort order,
+   * and spots / favorites kept on this device while the database was unreachable).
+   * Favorites and spots saved to the database are not touched.
+   */
+  function clearDeviceData() {
+    Object.keys(memory).forEach((k) => { delete memory[k]; });
+    try {
+      Object.keys(localStorage).filter((k) => k.startsWith(PREFIX)).forEach((k) => localStorage.removeItem(k));
+    } catch (e) { /* storage blocked */ }
+    shared.me = null;
+    shared.favDbIds = [];
+  }
+
   function pref(key, fallback) { return read('pref.' + key, fallback); }
   function setPref(key, value) { write('pref.' + key, value); }
 
   return {
     allSpots, getSpot, getSpotByDbId, addUserSpot, updateSpot, canEditSpot, deleteSpot, canDeleteSpot, isPrivateSpot, isAdmin, randomSpot,
-    sharedStatus, currentStudent, needsLogin, loadShared,
+    sharedStatus, currentStudent, needsLogin, loadShared, clearDeviceData,
     favorites, isFav, toggleFav,
     emptyFilters, normalize, getFilters, setFilters, clearFilters, matches, filtered, describe, isActive, removeKey,
     pref, setPref, clone,

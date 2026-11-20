@@ -93,7 +93,7 @@ const HOME_MENU = [
   { key: 'reset', label: 'Start Over', sub: 'Clear all filters', icon: 'refresh', route: 'start', clear: true, divider: true },
   // Only shown to the team admin account (Store.isAdmin(), from the database). The page and its
   // data are protected separately, so hiding this item is not the only thing keeping people out.
-  { key: 'okr', label: 'OKR Trackers', sub: 'Team admin only', icon: 'chart', route: 'okr', adminOnly: true, divider: true },
+  { key: 'okr', label: 'Admin Page', sub: 'OKRs and users (team admin only)', icon: 'chart', route: 'okr', adminOnly: true, divider: true },
 ];
 
 function menuItem({ label, sub, ic, attrs = '', current = false, divider = false }) {

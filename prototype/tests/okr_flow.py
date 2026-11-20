@@ -1,4 +1,4 @@
-"""Browser checks for the OKR Trackers page and active-time session tracking.
+"""Browser checks for the Admin Page's OKR trackers and active-time session tracking.
 Run with a local prototype server (same setup as account_flow.py):
     python3 prototype/tests/okr_flow.py
 js/db.js is replaced with an in-memory fake (three accounts; Jason is the admin), and every
@@ -112,7 +112,7 @@ with sync_playwright() as p:
     # ---------------- Menu + page protection ----------------
     for who in [None, 'alice@byu.edu']:
         as_user(who)
-        assert 'OKR Trackers' not in menu_labels(), who
+        assert 'Admin Page' not in menu_labels(), who
         calls.clear()
         page.goto(BASE_URL + '/#okr'); page.wait_for_selector('.empty-title')
         assert 'for the team admin' in text('.empty-title'), who
@@ -126,7 +126,7 @@ with sync_playwright() as p:
 
     as_user('jason@byu.edu')
     labels = menu_labels()
-    assert labels[-1] == 'OKR Trackers', labels
+    assert labels[-1] == 'Admin Page', labels
     page.click('#home-btn'); page.locator('[data-menu-route="okr"]').click()
     page.wait_for_url('**/#okr'); page.wait_for_selector('#okr-tracker-okr1 .okr-num')
     assert text('#okr-tracker-okr1 .okr-num') == '83.3%' and 'Meeting target' in text('#okr-tracker-okr1 .okr-badge')
@@ -155,7 +155,7 @@ with sync_playwright() as p:
     OTHER['okr2_stats'] = {**STATS2, 'users_counted': 0, 'users_within_5': 0, 'percent_within_5': None, 'users_in_progress': 2}
     page.click('#okr-tracker-okr2 .okr-refresh'); page.wait_for_function('document.querySelector("#okr-tracker-okr2 .okr-num").textContent === "—"')
     assert 'No finished searches yet' in text('#okr-tracker-okr2') and '2 in progress' in text('#okr-tracker-okr2')
-    assert 'OKR Trackers' in page.title()
+    assert 'Admin Page' in page.title()
 
     # ---------------- Refresh button ----------------
     fake['stats'] = 'hold'; n = len(stats_calls())
