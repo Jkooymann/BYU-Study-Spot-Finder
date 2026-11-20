@@ -235,7 +235,8 @@ const AccountPages = {
           <button class="btn btn-primary btn-lg account-submit" type="submit">${signup ? 'Create account' : 'Log in'}</button>
         </form><p class="account-switch">${signup ? 'Already have an account? <a href="#login">Log in</a>' : 'New here? <a href="#signup">Create an account</a>'}</p>`;
     }
-    return `<section class="account-layout">${intro}<div class="account-card" aria-labelledby="account-title">${content}</div></section>`;
+    const photo = `<figure class="account-photo"><img src="images/cosmo-fire-ring.jpg" width="547" height="365" alt="Cosmo the Cougar, BYU's mascot, leaps through a flaming ring in front of a packed stadium crowd." decoding="async"></figure>`;
+    return `<section class="account-layout">${intro}${photo}<div class="account-card" aria-labelledby="account-title">${content}</div></section>`;
   },
 
   /** #forgot: ask for a reset email, then say (without revealing whether the account exists) that it's on the way. */
