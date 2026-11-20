@@ -7,7 +7,7 @@
 | 3 | At least 80% of users favorite one or more study spots | Users with a favorite |
 | 4 | At least 30% of users with a favorite have one outside the library | Favorites beyond the library |
 
-All four are on the admin-only **OKR Trackers** page (☰ → OKR Trackers, `#okr`).
+All four are on the admin-only **Admin Page** (☰ → Admin Page, `#okr`), above the Users table (`js/admin-users.js`).
 
 | File | What it does |
 |---|---|
@@ -15,7 +15,7 @@ All four are on the admin-only **OKR Trackers** page (☰ → OKR Trackers, `#ok
 | `session-tracker.js` | Counts a logged-in student's **active** time and reports it every 30 s. `getTrackingUserId()` says who is tracked (nobody for logged-out visitors and the admin). |
 | `search-tracker.js` | OKR 2: starts a search when a logged-in student turns on a feature, marks it found when they open a spot card. |
 | `okr-panel.js` | `OKRPanel.mount(element, tracker)`: the card every OKR uses (percentage vs target, bar, four numbers, Refresh). Brings its own styles. |
-| `okr-trackers-page.js` | The **OKR Trackers** page (`#okr`), team admin only. `TRACKERS` lists the four cards: database function, headline column, wording. |
+| `okr-trackers-page.js` | The **Admin Page** (`#okr`), team admin only. `TRACKERS` lists the four cards: database function, headline column, wording. |
 | `supabase/migrations/20261116220000_okr1_session_tracking.sql` | `user_session` table, `okr_start_session()`, `okr_heartbeat()`, `okr1_stats()`, view `okr1_session_lengths`. |
 | `supabase/migrations/20261118020000_okr_admin_only_and_active_time.sql` | Makes the numbers admin only, leaves the admin out, and switches to active time. |
 | `supabase/migrations/20261119010000_okr_2_3_4.sql` | `spot_search` table, `okr_start_search()`, `okr_spot_found()`, `okr2_stats()`, `okr3_stats()`, `okr4_stats()`, views `okr_student_accounts`, `okr2_searches`. |
@@ -46,8 +46,8 @@ than the real time since it started. Sessions recorded before the active-time ch
 their old length (last heartbeat − start).
 
 **Admin.** The designated admin account (`public.app_admin`, checked by `is_spot_admin()`)
-is never recorded and is left out of every number. Only that account can open the OKR Trackers
-page (☰ menu → OKR Trackers), and `okr1_stats()` refuses everyone else, so typing `#okr` in the
+is never recorded and is left out of every number. Only that account can open the Admin Page
+(☰ menu → Admin Page), and `okr1_stats()` refuses everyone else, so typing `#okr` in the
 address bar shows only a "for the team admin" message.
 
 ## OKR 2 rules (find a spot within five minutes)

@@ -836,10 +836,46 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 #add-campus-plan { cursor: crosshair; }
 #add-campus-plan:focus-visible { outline: 3px solid var(--accent); }
 
-/* ---------------- OKR Trackers (#okr, team admin only) ---------------- */
+/* ---------------- Admin Page (#okr, team admin only): OKR trackers ---------------- */
 /* One card per tracker; more trackers fill in the grid (js/okr/okr-trackers-page.js). */
 .okr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
 .okr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; box-shadow: var(--shadow); min-width: 0; }
 .okr-checking { color: var(--muted); }
-/* Admin Portal button under the OKR cards. */
-.okr-admin-portal { margin-top: 24px; display: flex; }
+.admin-section-title { font-family: var(--font-display); font-size: 1.25rem; margin: 0 0 12px; }
+
+/* ---------------- Admin Page: Users table (js/admin-users.js) ---------------- */
+.admin-users { margin-top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; box-shadow: var(--shadow); }
+.admin-users-head { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+.admin-users-head h2 { font-family: var(--font-display); font-size: 1.25rem; margin: 0; display: flex; align-items: baseline; gap: 10px; }
+.admin-users-count { font-family: var(--font-body); font-size: .9rem; font-weight: 600; color: var(--muted); }
+.admin-users-sub, .admin-users-note { color: var(--muted); margin: 4px 0 0; font-size: .95rem; }
+.admin-users-error { margin-top: 8px; }
+.admin-users-error p { margin: 0 0 8px; }
+.admin-users-table-wrap { overflow-x: auto; }
+.admin-users-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.admin-users-table th { text-align: left; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.admin-users-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.admin-users-table tr:last-child td { border-bottom: 0; }
+.admin-users-table tr.is-editing td { background: var(--primary-soft); }
+.admin-users-name { font-weight: 600; margin-right: 6px; }
+.admin-users-email { overflow-wrap: anywhere; }
+.admin-badge { display: inline-block; font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); margin-right: 4px; vertical-align: middle; }
+.admin-badge-muted { background: var(--surface-2); color: var(--muted); }
+.admin-users-cell-actions { text-align: right; }
+.admin-users-actions, .admin-users-confirm { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+.admin-users-confirm span { font-weight: 600; margin-right: 4px; }
+.admin-users-form { border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: var(--r-sm); padding: 16px; margin-bottom: 20px; background: var(--bg); }
+.admin-users-form h3 { margin: 0 0 12px; font-size: 1.05rem; }
+.admin-users-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 4px 16px; }
+.admin-users-form-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+/* Phones: each user becomes a small card instead of a wide table row. */
+@media (max-width: 720px) {
+  .admin-users { padding: 16px; }
+  .admin-users-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .admin-users-table, .admin-users-table tbody, .admin-users-table tr, .admin-users-table td { display: block; width: 100%; }
+  .admin-users-table tr { border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 12px; margin-bottom: 10px; }
+  .admin-users-table td { border: 0; padding: 4px 0; display: grid; grid-template-columns: 6.5rem 1fr; gap: 8px; }
+  .admin-users-table td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: .85rem; font-weight: 600; }
+  .admin-users-table td.admin-users-cell-actions { display: block; text-align: left; padding-top: 8px; }
+  .admin-users-actions, .admin-users-confirm { justify-content: flex-start; }
+}

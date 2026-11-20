@@ -1,5 +1,6 @@
 /* =========================================================================
-   OKR Trackers page (#okr): the team admin's view of every OKR tracker.
+   Admin Page (#okr): the team admin's view of every OKR tracker, with the
+   Users table (add / edit / delete accounts, js/admin-users.js) underneath.
    Only the designated admin account sees it. The menu item and this page check
    Store.isAdmin() (from the database's is_spot_admin()), but the real protection
    is in the database: each tracker's numbers come from a function that refuses
@@ -72,35 +73,30 @@ const OKRTrackersPage = (() => {
       empty: () => 'No student has a favorite yet, so there is no one to count.',
     },
   ];
-  /* The team's hand-coded admin portal (admin-portal/ on the admin-portal branch).
-     Placeholder: it only works while the portal is running on your own computer
-     (node index.js). Change this to the real address once the portal is deployed. */
-  const ADMIN_PORTAL_URL = 'http://localhost:3000';
   let mounted = [];
 
   /** Page HTML. Non-admins (and logged-out visitors) get a message and no tracker at all. */
   function render() {
     const status = Store.sharedStatus();
     if (status === 'loading') {
-      return `<section class="page okr-trackers-page">${pageHeader({ title: 'OKR Trackers' })}<p class="okr-checking">Checking your account…</p></section>`;
+      return `<section class="page okr-trackers-page">${pageHeader({ title: 'Admin Page' })}<p class="okr-checking">Checking your account…</p></section>`;
     }
     if (!Store.isAdmin()) {
       const me = Store.currentStudent();
       return `<section class="page"><div class="empty">
         <span class="empty-ic">${icon('lock')}</span>
         <p class="empty-title">This page is for the team admin</p>
-        <p>${me ? 'Your account doesn’t have access to the OKR trackers.' : 'Log in with the team admin account to see the OKR trackers.'}</p>
+        <p>${me ? 'Your account doesn’t have access to the Admin Page.' : 'Log in with the team admin account to see the Admin Page.'}</p>
         <div class="empty-actions">${me ? '' : '<a class="btn btn-primary" href="#login">Log in</a>'}<a class="btn btn-secondary" href="#start">Go to Home</a></div>
       </div></section>`;
     }
     return `<section class="page okr-trackers-page">
-      ${pageHeader({ eyebrow: 'Team admin', title: 'OKR Trackers', sub: 'How the site is doing on the team’s goals. Your own visits as the admin are never counted.' })}
+      ${pageHeader({ eyebrow: 'Team admin', title: 'Admin Page', sub: 'How the site is doing on the team’s goals, and everyone who has an account. Your own visits as the admin are never counted.' })}
+      <h2 class="admin-section-title">OKR trackers</h2>
       <div class="okr-grid">
         ${TRACKERS.map((t) => `<article class="okr-card" id="okr-tracker-${t.id}"></article>`).join('')}
       </div>
-      <div class="okr-admin-portal">
-        <a class="btn btn-primary" href="${ADMIN_PORTAL_URL}" target="_blank" rel="noopener">${icon('users2')} Admin Portal</a>
-      </div>
+      ${typeof AdminUsers !== 'undefined' ? AdminUsers.render() : ''}
     </section>`;
   }
 
@@ -112,6 +108,7 @@ const OKRTrackersPage = (() => {
       const el = document.getElementById(`okr-tracker-${t.id}`);
       return el ? OKRPanel.mount(el, t) : null;
     }).filter(Boolean);
+    if (typeof AdminUsers !== 'undefined') AdminUsers.mount();
   }
 
   /** Stop auto-refresh timers when leaving the page or redrawing it. */

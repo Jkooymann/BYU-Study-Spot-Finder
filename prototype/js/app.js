@@ -4,7 +4,7 @@
             #spot-<id> (Spot Details over the page you came from)
             #list  #favorites  #add  #add-<building id> (Add a Spot with the building picked)
             #edit-<spot id> (team admin only: the Add a Spot form filled with that spot)
-            #okr (OKR Trackers: team admin only, js/okr/okr-trackers-page.js)
+            #okr (Admin Page: OKR trackers + Users table, team admin only, js/okr/okr-trackers-page.js)
    ========================================================================= */
 
 const App = {
@@ -143,7 +143,7 @@ const App = {
     $('#app').innerHTML = html;
     this.renderedBase = h;
     if (h === 'okr' && typeof OKRTrackersPage !== 'undefined') OKRTrackersPage.mount();
-    const names = { start: 'Get Started', map: 'Campus Map', list: 'Study Spots', favorites: 'Favorites', add: 'Add a Spot', okr: 'OKR Trackers' };
+    const names = { start: 'Get Started', map: 'Campus Map', list: 'Study Spots', favorites: 'Favorites', add: 'Add a Spot', okr: 'Admin Page' };
     document.title = `${AccountPages.titles[h] || names[this.pageKeyFor(h)] || 'Floor View'} · BYU Study Spot Finder`;
     if (h.startsWith('edit-')) document.title = 'Edit Spot · BYU Study Spot Finder';
     if (h.startsWith('building-')) document.title = `${(buildingById(h.slice(9).split('-f')[0]) || {}).name || 'Building'} · BYU Study Spot Finder`;

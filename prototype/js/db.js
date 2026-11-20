@@ -235,9 +235,16 @@ const DB = (() => {
     return data.user;
   }
 
+  /**
+   * Log out. Ends the login on Supabase's side too (its refresh token stops working),
+   * and always removes the login saved in this browser, even if the server can't be reached.
+   */
   async function signOut() {
     const { error } = await client.auth.signOut();
-    if (error) throw error;
+    if (error) {
+      await client.auth.signOut({ scope: 'local' }).catch(() => {});
+      throw error;
+    }
   }
 
   /**
@@ -313,6 +320,29 @@ const DB = (() => {
     return !!(data && data.session);
   }
 
+  /* ---------------------------------------------------------------------
+     Admin Page: manage users (js/admin-users.js). Each call is a database
+     function that refuses anyone but the team admin
+     (supabase/migrations/*_admin_manage_users.sql), so these only work for the admin.
+     --------------------------------------------------------------------- */
+  async function adminRpc(fn, args) {
+    const { data, error } = await client.rpc(fn, args);
+    if (error) throw error;
+    return data;
+  }
+  /** Every account: [{ user_id, display_name, byu_net_id, byu_email, account_created_at, has_login, last_sign_in_at, is_admin, favorite_count }] */
+  const adminListUsers = () => adminRpc('admin_list_users');
+  /** Make a login that works right away. Resolves to the new user_id. */
+  const adminCreateUser = ({ email, password, displayName, netId }) => adminRpc('admin_create_user', {
+    p_email: email, p_password: password, p_display_name: displayName, p_byu_net_id: netId || '',
+  });
+  /** Change name / Net ID / email; a blank newPassword keeps the old password. */
+  const adminUpdateUser = (userId, { displayName, netId, email, newPassword }) => adminRpc('admin_update_user', {
+    p_user_id: userId, p_display_name: displayName, p_byu_net_id: netId, p_email: email, p_new_password: newPassword || null,
+  });
+  /** Delete the login, favorites, private spots and everything else that is theirs. */
+  const adminDeleteUser = (userId) => adminRpc('admin_delete_user', { p_user_id: userId });
+
   /** The logged-in person's access token, or null. Used by js/okr/okr-api.js. */
   async function accessToken() {
     if (!client) return null;
@@ -326,5 +356,6 @@ const DB = (() => {
     buildings, studentSpots, addSpot, updateSpot, deleteSpot,
     signUp, signIn, signOut, currentStudent, recommendSpots,
     authLink, finishAuthLink, requestPasswordReset, updatePassword,
+    adminListUsers, adminCreateUser, adminUpdateUser, adminDeleteUser,
   };
 })();
