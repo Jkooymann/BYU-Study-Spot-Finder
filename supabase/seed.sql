@@ -1,17 +1,35 @@
 -- Sample data for the BYU Study Spot Finder tables.
 -- Buildings match the front-end prototype (prototype/js/data.js).
 -- Coordinates and hours are approximate sample values.
+-- Run supabase/migrations first (building_hours comes from 20261123010000_normalize_to_3nf.sql).
 -- Safe to run more than once: rows that already exist are skipped.
 
 insert into public.building
-  (building_id, building_code, building_name, campus_map_latitude, campus_map_longitude, floor_count, weekday_open_time, weekday_close_time)
+  (building_id, building_code, building_name, campus_map_latitude, campus_map_longitude, floor_count)
 values
-  (1, 'HBLL', 'Harold B. Lee Library',    40.248630, -111.649260, 5, '07:00', '00:00'),
-  (2, 'WSC',  'Wilkinson Student Center', 40.248609, -111.647124, 3, '07:00', '23:00'),
-  (3, 'JFSB', 'Joseph F. Smith Building', 40.248371, -111.651633, 4, '07:00', '22:00'),
-  (4, 'TNRB', 'Tanner Building',          40.250409, -111.652574, 6, '07:00', '22:00'),
-  (5, 'TMCB', 'Talmage Building',         40.249600, -111.650862, 4, '07:00', '23:00'),
-  (6, 'ESC',  'Eyring Science Center',    40.247227, -111.650281, 3, '07:00', '22:00')
+  (1, 'HBLL', 'Harold B. Lee Library',    40.248630, -111.649260, 5),
+  (2, 'WSC',  'Wilkinson Student Center', 40.248609, -111.647124, 3),
+  (3, 'JFSB', 'Joseph F. Smith Building', 40.248371, -111.651633, 4),
+  (4, 'TNRB', 'Tanner Building',          40.250409, -111.652574, 6),
+  (5, 'TMCB', 'Talmage Building',         40.249600, -111.650862, 4),
+  (6, 'ESC',  'Eyring Science Center',    40.247227, -111.650281, 3)
+on conflict do nothing;
+
+-- Building hours (approximate sample values), one row per building per day.
+-- 0 = Sunday ... 6 = Saturday; these are Monday-Friday. 00:00 = midnight.
+-- (Replaced building.weekday_open_time / weekday_close_time on 2026-11-23,
+-- see supabase/migrations/20261123010000_normalize_to_3nf.sql.)
+insert into public.building_hours (building_id, day_of_week, open_time, close_time)
+select h.building_id, d.day, h.open_time::time, h.close_time::time
+from (values
+  (1, '07:00', '00:00'),
+  (2, '07:00', '23:00'),
+  (3, '07:00', '22:00'),
+  (4, '07:00', '22:00'),
+  (5, '07:00', '23:00'),
+  (6, '07:00', '22:00')
+) as h(building_id, open_time, close_time)
+cross join generate_series(1, 5) as d(day)
 on conflict do nothing;
 
 insert into public.student_user

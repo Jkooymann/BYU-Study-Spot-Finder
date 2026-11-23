@@ -38,6 +38,8 @@ Note: this diagram is from October. Since then the database has also gained:
 
 The `seat_count` and `location_description` columns were removed from `study_spot`, and the app no longer uses spot ratings.
 
+November 23 (normalization to 3NF): new lookup tables `noise_level` and `busyness_level`, and a new `building_hours` table that replaces `building.weekday_open_time` / `weekday_close_time`. Details, the problems found, and the step-by-step spreadsheet are in [docs/database/normalization-3nf.md](docs/database/normalization-3nf.md).
+
 ## Tech Stack
 
 - **Frontend:** plain HTML, CSS and JavaScript (no build step), hosted on **GitHub Pages**. Every merge to `main` redeploys the live site automatically.
